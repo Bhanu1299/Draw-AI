@@ -5,6 +5,8 @@ import type { BuildKind } from '@/shared/types';
 export const MAX_EXPORT_W = 1600;
 // 4000px keeps tall screenshots as PNGs under the 5 MB upload cap; the model downsamples beyond ~2.5k anyway.
 export const MAX_EXPORT_H = 4000;
+/** Tall exports are cut into slices this tall: DeepSeek shrinks each image to ~1300px, so slices keep text legible. */
+export const SLICE_HEIGHT = 1280;
 /** Padding (per side) added around the selection when exporting it as an image. */
 export const EXPORT_PADDING = 16;
 
@@ -28,6 +30,13 @@ export function fitScale(w: number, h: number, maxW: number, maxH: number): numb
 /** Export scale for a selection of w × h page units, accounting for the padding added around it. */
 export function exportScale(w: number, h: number): number {
   return fitScale(w + 2 * EXPORT_PADDING, h + 2 * EXPORT_PADDING, MAX_EXPORT_W, MAX_EXPORT_H);
+}
+
+/** Horizontal slices (top to bottom) covering an image of the given size. */
+export function sliceRects(width: number, height: number): Array<{ y: number; h: number }> {
+  const rects: Array<{ y: number; h: number }> = [];
+  for (let y = 0; y < height; y += SLICE_HEIGHT) rects.push({ y, h: Math.min(SLICE_HEIGHT, height - y) });
+  return rects.length > 0 ? rects : [{ y: 0, h: height }];
 }
 
 /** Frames persisted mid-build (e.g. the tab was reloaded) that will never finish. */

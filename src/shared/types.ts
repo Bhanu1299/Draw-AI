@@ -5,8 +5,8 @@ export type BuildKind = 'sketch' | 'screenshot';
 
 export interface BuildRequest {
   kind: BuildKind;
-  /** PNG image, base64 without the data: prefix. */
-  imageBase64: string;
+  /** PNG images, base64 without the data: prefix. Several = horizontal slices of one tall image, top to bottom. */
+  images: string[];
   note: string;
 }
 

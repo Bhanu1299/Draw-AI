@@ -98,7 +98,7 @@ BROWSER                                          SERVER (Next.js)               
 | Preview compile | `@babel/standalone` + custom JSX plugin, ES modules from `esm.sh` | Runs in the browser with no server build; the plugin injects `data-src` |
 | Styling in preview | Tailwind browser build (v4) | No build step per edit |
 | Speech-to-text | Streaming STT with per-word timestamps (default: Deepgram) | The transcript is ready the moment you press Stop, and word timings enable binding marks to words. Pick the exact provider at planning. |
-| AI | Claude via the Anthropic SDK. A Sonnet-class model handles edits, and an Opus-class model handles reference import (screenshot/URL → code). | Strong at React/Tailwind and vision; tool use gives structured edits. Confirm model IDs at planning. |
+| AI | **DeepSeek `deepseek-flash`** (default; its only model that takes images) via its OpenAI-compatible API, with Claude (`claude-opus-5`) selectable by `AI_PROVIDER=anthropic`. The pipeline speaks provider-neutral chat types, and each provider has a small adapter. Tall images are sent as 1280px slices because DeepSeek shrinks each image to about 1300px. | Owner decision (2026-09-28): much lower cost per build. Keeping Claude switchable allows quality comparisons. |
 | Auth / DB / storage | Supabase (magic link + GitHub OAuth, Postgres, Storage) | Auth plus database plus file storage in one service |
 | URL capture (M4) | Small Playwright worker on Fly.io or Railway | Serverless can't comfortably run Chromium |
 

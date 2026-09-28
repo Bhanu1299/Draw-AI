@@ -1,21 +1,18 @@
-import type Anthropic from '@anthropic-ai/sdk';
+import type { ChatMessage, Generate } from '@/server/ai/chat';
 import type { BuildRequest, BuildResponse } from '@/shared/types';
 import { parseFiles, parseSummary } from './parseFiles';
 import { BUILD_SYSTEM_PROMPT, buildFixPrompt, buildUserContent } from './prompt';
 import { validateProject } from './validateProject';
 
-/** Sends a conversation to the model and returns its text. Injected so tests never call the API. */
-export type Generate = (args: { system: string; messages: Anthropic.Beta.BetaMessageParam[] }) => Promise<string>;
-
 export async function buildProject(req: BuildRequest, generate: Generate): Promise<BuildResponse> {
-  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: buildUserContent(req) }];
+  const messages: ChatMessage[] = [{ role: 'user', content: buildUserContent(req) }];
   const first = await generate({ system: BUILD_SYSTEM_PROMPT, messages });
   const files = parseFiles(first);
   let summary = parseSummary(first);
   let result = validateProject(files);
 
   if (!result.ok) {
-    const retryMessages: Anthropic.Beta.BetaMessageParam[] = [
+    const retryMessages: ChatMessage[] = [
       ...messages,
       { role: 'assistant', content: first },
       { role: 'user', content: buildFixPrompt(result.errors) },

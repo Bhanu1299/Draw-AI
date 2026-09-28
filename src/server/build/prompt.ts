@@ -1,5 +1,5 @@
-import type Anthropic from '@anthropic-ai/sdk';
 import { ALLOWED_PACKAGES } from '@/preview/runtimeHtml';
+import type { ChatPart } from '@/server/ai/chat';
 import type { BuildRequest } from '@/shared/types';
 
 const IMPORTABLE = ALLOWED_PACKAGES.filter((p) => p !== 'react/jsx-runtime').join(', ');
@@ -22,11 +22,17 @@ How to read the input:
 - sketch: boxes are layout regions, handwritten words are content or labels, and arrows or notes are instructions to you, not content to show. Fill gaps with sensible, realistic content.
 - screenshot: reproduce the layout, colors, typography, spacing and visible text as faithfully as you can.`;
 
-export function buildUserContent(req: BuildRequest): Anthropic.Beta.BetaContentBlockParam[] {
+export function buildUserContent(req: BuildRequest): ChatPart[] {
   const note = req.note.trim();
+  const lines = [`Input type: ${req.kind}.`];
+  if (req.images.length > 1) {
+    lines.push(`The input is one tall image cut into ${req.images.length} slices, shown top to bottom. Treat them as one continuous image.`);
+  }
+  if (note) lines.push(`User note: ${note}`);
+  lines.push('Build the page.');
   return [
-    { type: 'image', source: { type: 'base64', media_type: 'image/png', data: req.imageBase64 } },
-    { type: 'text', text: `Input type: ${req.kind}.${note ? `\nUser note: ${note}` : ''}\nBuild the page.` },
+    ...req.images.map((pngBase64): ChatPart => ({ type: 'image', pngBase64 })),
+    { type: 'text', text: lines.join('\n') },
   ];
 }
 

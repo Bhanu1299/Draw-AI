@@ -1,6 +1,6 @@
 import type { TLShapeId } from 'tldraw';
 import { describe, expect, it } from 'vitest';
-import { checkSelection, EXPORT_PADDING, exportScale, findInterruptedFrames, fitScale, MAX_EXPORT_H } from './selectionHelpers';
+import { checkSelection, EXPORT_PADDING, exportScale, findInterruptedFrames, fitScale, MAX_EXPORT_H, SLICE_HEIGHT, sliceRects } from './selectionHelpers';
 
 const id = (s: string) => `shape:${s}` as TLShapeId;
 
@@ -53,5 +53,21 @@ describe('exportScale', () => {
   });
   it('keeps the long edge at or under 4000px so tall screenshots stay within the upload limit', () => {
     expect(MAX_EXPORT_H).toBeLessThanOrEqual(4000);
+  });
+});
+
+describe('sliceRects', () => {
+  it('keeps a short image whole', () => {
+    expect(sliceRects(1200, 900)).toEqual([{ y: 0, h: 900 }]);
+  });
+  it('cuts a tall image into slices of at most SLICE_HEIGHT, top to bottom', () => {
+    expect(sliceRects(1280, SLICE_HEIGHT * 2 + 440)).toEqual([
+      { y: 0, h: SLICE_HEIGHT },
+      { y: SLICE_HEIGHT, h: SLICE_HEIGHT },
+      { y: SLICE_HEIGHT * 2, h: 440 },
+    ]);
+  });
+  it('never makes more than 4 slices for the tallest export', () => {
+    expect(sliceRects(1600, MAX_EXPORT_H).length).toBeLessThanOrEqual(4);
   });
 });

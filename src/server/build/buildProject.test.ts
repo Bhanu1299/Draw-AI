@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BuildRequest } from '@/shared/types';
-import { buildProject, type Generate } from './buildProject';
+import type { Generate } from '@/server/ai/chat';
+import { buildProject } from './buildProject';
 
-const REQ: BuildRequest = { kind: 'sketch', imageBase64: 'AAAA', note: '' };
+const REQ: BuildRequest = { kind: 'sketch', images: ['AAAA'], note: '' };
 const VALID =
   '<file path="App.tsx">export default function App() { return <main className="p-8">Hi</main>; }</file>\n<summary>A simple page</summary>';
 const INVALID =
