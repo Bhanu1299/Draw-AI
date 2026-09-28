@@ -5,19 +5,26 @@ import { transformFile } from './transformFile';
 
 export const ENTRY_FILE = 'App.tsx';
 
-export type CompileResult = { ok: true; html: string } | { ok: false; error: string };
+/** `paths` lists the files reachable from App.tsx: the only ones compiled and rendered. */
+export type CompileResult = { ok: true; html: string; paths: string[] } | { ok: false; error: string };
 
 const REQUIRE_RE = /require\("([^"]+)"\)/g;
 
-/** Compile every file and produce iframe HTML. The first problem found is returned as a readable error. */
+/**
+ * Compile App.tsx and every file it reaches, and produce iframe HTML. Files nothing imports are ignored,
+ * so a stray or broken leftover can't fail an otherwise working page. The first problem is returned as a readable error.
+ */
 export function compileProject(files: ProjectFiles, opts: { tagSources: boolean }): CompileResult {
   if (!(ENTRY_FILE in files)) return { ok: false, error: `Missing ${ENTRY_FILE}` };
 
   const modules: Record<string, CompiledModule> = {};
-  for (const [path, source] of Object.entries(files)) {
+  const queue = [ENTRY_FILE];
+  while (queue.length > 0) {
+    const path = queue.shift()!;
+    if (path in modules) continue;
     let code: string;
     try {
-      code = transformFile(path, source, opts);
+      code = transformFile(path, files[path], opts);
     } catch (err) {
       return { ok: false, error: firstLine(err) };
     }
@@ -33,11 +40,12 @@ export function compileProject(files: ProjectFiles, opts: { tagSources: boolean 
       const target = resolveImport(path, spec, files);
       if (!target) return { ok: false, error: `${path}: cannot find "${spec}"` };
       deps[spec] = target;
+      queue.push(target);
     }
     modules[path] = { code, deps };
   }
 
-  return { ok: true, html: buildRuntimeHtml(modules, ENTRY_FILE) };
+  return { ok: true, html: buildRuntimeHtml(modules, ENTRY_FILE), paths: Object.keys(modules) };
 }
 
 function firstLine(err: unknown): string {

@@ -42,6 +42,14 @@ describe('compileProject', () => {
     expect(!result.ok && result.error).toMatch(/^App\.tsx/);
   });
 
+  it('compiles only files reachable from App.tsx and lists them', () => {
+    const result = compileProject(
+      { 'App.tsx': APP, 'components/Header.tsx': HEADER, 'Unused.tsx': 'export default function U() { return <div> }' },
+      { tagSources: false },
+    );
+    expect(result.ok && result.paths.sort()).toEqual(['App.tsx', 'components/Header.tsx']);
+  });
+
   it('compiles the bundled sample project', () => {
     expect(compileProject(SAMPLE_FILES, { tagSources: true }).ok).toBe(true);
   });

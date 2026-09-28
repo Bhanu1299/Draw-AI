@@ -5,6 +5,9 @@ describe('prompt', () => {
   it('lists the allowed packages in the system prompt', () => {
     expect(BUILD_SYSTEM_PROMPT).toContain('react, lucide-react');
   });
+  it('tells the model not to use viewport-height units', () => {
+    expect(BUILD_SYSTEM_PROMPT).toContain('Never use viewport-height units');
+  });
   it('sends the image first, then the kind and note', () => {
     const content = buildUserContent({ kind: 'screenshot', imageBase64: 'AAAA', note: '  dark theme ' });
     expect(content[0]).toEqual({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } });

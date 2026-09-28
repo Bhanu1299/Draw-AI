@@ -10,23 +10,23 @@ export type Generate = (args: { system: string; messages: Anthropic.Beta.BetaMes
 export async function buildProject(req: BuildRequest, generate: Generate): Promise<BuildResponse> {
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: buildUserContent(req) }];
   const first = await generate({ system: BUILD_SYSTEM_PROMPT, messages });
-  let files = parseFiles(first);
+  const files = parseFiles(first);
   let summary = parseSummary(first);
-  let errors = validateProject(files);
+  let result = validateProject(files);
 
-  if (errors.length > 0) {
+  if (!result.ok) {
     const retryMessages: Anthropic.Beta.BetaMessageParam[] = [
       ...messages,
       { role: 'assistant', content: first },
-      { role: 'user', content: buildFixPrompt(errors) },
+      { role: 'user', content: buildFixPrompt(result.errors) },
     ];
     const second = await generate({ system: BUILD_SYSTEM_PROMPT, messages: retryMessages });
     // The fix may return only the changed files, so merge over the first attempt.
-    files = { ...files, ...parseFiles(second) };
+    // Leftovers the fixed page no longer imports are dropped by validateProject.
     summary = parseSummary(second) ?? summary;
-    errors = validateProject(files);
-    if (errors.length > 0) return { ok: false, error: `Couldn't build a working page: ${errors[0]}` };
+    result = validateProject({ ...files, ...parseFiles(second) });
+    if (!result.ok) return { ok: false, error: `Couldn't build a working page: ${result.errors[0]}` };
   }
 
-  return { ok: true, files, summary: summary ?? 'Built the page.' };
+  return { ok: true, files: result.files, summary: summary ?? 'Built the page.' };
 }

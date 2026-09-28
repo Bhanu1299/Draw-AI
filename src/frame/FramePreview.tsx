@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useEditor } from 'tldraw';
+import { isBuildInFlight } from '@/board/buildTracker';
 import { parsePreviewMessage } from '@/preview/previewMessages';
+import { nextFrameHeight } from './frameHeight';
 import type { FrameShape } from './FrameShapeUtil';
 import { FRAME_TYPE } from './frameTypes';
-
-const MIN_HEIGHT = 200;
 
 export function FramePreview({ shape }: { shape: FrameShape }) {
   const editor = useEditor();
@@ -40,9 +40,9 @@ export function FramePreview({ shape }: { shape: FrameShape }) {
         setProblem(msg.message);
         return;
       }
-      const height = Math.max(MIN_HEIGHT, Math.ceil(msg.height));
       const current = editor.getShape(shape.id) as FrameShape | undefined;
-      if (!current || Math.abs(current.props.h - height) < 2) return;
+      const height = current ? nextFrameHeight(current.props.h, msg.height) : null;
+      if (height === null) return;
       // Auto-resizing is not a user action: keep it out of undo history.
       editor.run(() => editor.updateShape({ id: shape.id, type: FRAME_TYPE, props: { h: height } }), {
         history: 'ignore',
@@ -52,7 +52,13 @@ export function FramePreview({ shape }: { shape: FrameShape }) {
     return () => window.removeEventListener('message', onMessage);
   }, [editor, shape.id]);
 
-  if (status === 'building') return <Centered>Building your page…</Centered>;
+  if (status === 'building') {
+    // Not running in this tab: the page was reloaded, an undo/redo brought the frame back, or another tab started it.
+    if (!isBuildInFlight(shape.id)) {
+      return <Centered tone="error">This build was interrupted. Select your sketch and click Build again.</Centered>;
+    }
+    return <Centered>Building your page…</Centered>;
+  }
   if (status === 'error') return <Centered tone="error">{error}</Centered>;
 
   return (

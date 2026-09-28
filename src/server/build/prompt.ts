@@ -16,7 +16,7 @@ Code rules:
 - Use TypeScript function components. Style only with Tailwind CSS v4 utility classes.
 - You may import only: ${IMPORTABLE}, and relative imports between your own files. No CSS files and no other packages.
 - For images, use https://placehold.co/WIDTHxHEIGHT placeholder URLs.
-- Design for a 1280px wide desktop viewport.
+- Design for a 1280px wide desktop viewport. Never use viewport-height units (vh, dvh, svh or h-screen): the preview grows to fit the page, so use fixed heights like min-h-[800px] instead.
 
 How to read the input:
 - sketch: boxes are layout regions, handwritten words are content or labels, and arrows or notes are instructions to you, not content to show. Fill gaps with sensible, realistic content.

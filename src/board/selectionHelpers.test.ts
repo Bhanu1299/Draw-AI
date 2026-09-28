@@ -1,6 +1,6 @@
 import type { TLShapeId } from 'tldraw';
 import { describe, expect, it } from 'vitest';
-import { checkSelection, findInterruptedFrames, fitScale } from './selectionHelpers';
+import { checkSelection, EXPORT_PADDING, exportScale, findInterruptedFrames, fitScale, MAX_EXPORT_H } from './selectionHelpers';
 
 const id = (s: string) => `shape:${s}` as TLShapeId;
 
@@ -42,5 +42,16 @@ describe('findInterruptedFrames', () => {
       { id: id('c'), type: 'draw', props: { status: 'building' } },
     ];
     expect(findInterruptedFrames(shapes)).toEqual([id('a')]);
+  });
+});
+
+describe('exportScale', () => {
+  it('fits the padded image, not just the shapes, inside the export cap', () => {
+    const h = 10000;
+    const scale = exportScale(1000, h);
+    expect((h + 2 * EXPORT_PADDING) * scale).toBeCloseTo(MAX_EXPORT_H, 5);
+  });
+  it('keeps the long edge at or under 4000px so tall screenshots stay within the upload limit', () => {
+    expect(MAX_EXPORT_H).toBeLessThanOrEqual(4000);
   });
 });

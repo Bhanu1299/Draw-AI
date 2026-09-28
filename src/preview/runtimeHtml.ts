@@ -17,6 +17,23 @@ const TAILWIND_URL = 'https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3';
 
 export const ALLOWED_PACKAGES = Object.keys(EXTERNAL_URLS);
 
+/** Height of the virtual desktop viewport that vh-based utilities resolve to. */
+export const VIRTUAL_VIEWPORT_HEIGHT = 800;
+const READY_TIMEOUT_MS = 15000;
+const LIBS_FAILED_MESSAGE = "Couldn't load the preview libraries. Check your internet connection and reload.";
+
+// The iframe's real viewport is the frame's height, which follows the content. Anything sized in vh would
+// then feed back into the height it reports and grow without limit, so pin the screen utilities to a fixed
+// desktop viewport. Loaded with !important because Tailwind's browser build injects its styles after ours.
+const VIEWPORT_PIN_CSS = ['h', 'min-h', 'max-h']
+  .map((prefix) => {
+    const property = { h: 'height', 'min-h': 'min-height', 'max-h': 'max-height' }[prefix];
+    return ['screen', 'dvh', 'svh', 'lvh']
+      .map((unit) => `.${prefix}-${unit} { ${property}: ${VIRTUAL_VIEWPORT_HEIGHT}px !important; }`)
+      .join('\n');
+  })
+  .join('\n');
+
 /** JSON that is safe to inline inside a <script> element. */
 export function safeJsonForScript(value: unknown): string {
   return JSON.stringify(value)
@@ -36,7 +53,25 @@ export function buildRuntimeHtml(modules: Record<string, CompiledModule>, entry:
   return `<!doctype html>
 <html><head><meta charset="utf-8">
 <script src="${TAILWIND_URL}"></script>
-<style>html,body{margin:0;background:#fff}</style>
+<style>
+html,body{margin:0;background:#fff}
+${VIEWPORT_PIN_CSS}
+</style>
+<script>
+// Classic script: runs even when the module script's imports fail to load.
+window.__drawaiReport = (msg) => parent.postMessage({ source: ${JSON.stringify(PREVIEW_SOURCE)}, ...msg }, '*');
+window.addEventListener('error', (e) => {
+  if (e instanceof ErrorEvent) window.__drawaiReport({ type: 'runtime-error', message: String(e.message) });
+  else if (e.target && e.target.tagName === 'SCRIPT') window.__drawaiReport({ type: 'runtime-error', message: ${JSON.stringify(LIBS_FAILED_MESSAGE)} });
+}, true);
+window.addEventListener('unhandledrejection', (e) => {
+  const reason = e.reason && e.reason.message ? e.reason.message : e.reason;
+  window.__drawaiReport({ type: 'runtime-error', message: String(reason) });
+});
+setTimeout(() => {
+  if (!window.__drawaiReady) window.__drawaiReport({ type: 'runtime-error', message: ${JSON.stringify(LIBS_FAILED_MESSAGE)} });
+}, ${READY_TIMEOUT_MS});
+</script>
 </head><body><div id="root"></div>
 <script type="module">
 ${externalImports}
@@ -44,8 +79,7 @@ import { createRoot } from ${JSON.stringify(REACT_DOM_CLIENT_URL)};
 const externals = { ${externalMap} };
 const modules = ${safeJsonForScript(modules)};
 const cache = {};
-const report = (msg) => parent.postMessage({ source: ${JSON.stringify(PREVIEW_SOURCE)}, ...msg }, '*');
-window.addEventListener('error', (e) => report({ type: 'runtime-error', message: String(e.message) }));
+const report = window.__drawaiReport;
 function load(path) {
   if (cache[path]) return cache[path].exports;
   const mod = modules[path];
@@ -63,6 +97,7 @@ function load(path) {
 try {
   const App = load(${JSON.stringify(entry)}).default;
   createRoot(document.getElementById('root')).render(externals.react.createElement(App));
+  window.__drawaiReady = true;
   new ResizeObserver(() => report({ type: 'height', height: document.documentElement.scrollHeight })).observe(document.body);
 } catch (err) {
   report({ type: 'runtime-error', message: String(err && err.message ? err.message : err) });

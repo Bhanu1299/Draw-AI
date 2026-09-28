@@ -10,8 +10,8 @@ describe('safeJsonForScript', () => {
 describe('buildRuntimeHtml', () => {
   it('embeds modules without breaking out of the script tag', () => {
     const html = buildRuntimeHtml({ 'App.tsx': { code: 'const s = "</script>";', deps: {} } }, 'App.tsx');
-    // Only the two real closing tags: the Tailwind script and the module script.
-    expect(html.match(/<\/script>/g)).toHaveLength(2);
+    // Only the three real closing tags: Tailwind, the error guard and the module script.
+    expect(html.match(/<\/script>/g)).toHaveLength(3);
     expect(html).toContain('\\u003c/script>');
   });
 
@@ -19,6 +19,22 @@ describe('buildRuntimeHtml', () => {
     const html = buildRuntimeHtml({ 'App.tsx': { code: '', deps: {} } }, 'App.tsx');
     expect(html).toContain('load("App.tsx")');
     expect(html).toContain('@tailwindcss/browser@4.3.3');
+  });
+
+  it('pins viewport-height utilities to a fixed 800px desktop viewport', () => {
+    const html = buildRuntimeHtml({ 'App.tsx': { code: '', deps: {} } }, 'App.tsx');
+    expect(html).toMatch(/\.min-h-screen\s*\{\s*min-height:\s*800px\s*!important/);
+    expect(html).toMatch(/\.h-screen\s*\{\s*height:\s*800px\s*!important/);
+  });
+
+  it('installs the error guard before the module script so failed imports are reported', () => {
+    const html = buildRuntimeHtml({ 'App.tsx': { code: '', deps: {} } }, 'App.tsx');
+    const guard = html.indexOf('unhandledrejection');
+    const moduleScript = html.indexOf('<script type="module">');
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(moduleScript);
+    expect(html).toContain("Couldn't load the preview libraries");
+    expect(html).toContain('__drawaiReady = true');
   });
 
   it('allows exactly react, react/jsx-runtime and lucide-react', () => {

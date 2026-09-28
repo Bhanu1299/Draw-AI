@@ -33,6 +33,13 @@ describe('buildProject', () => {
     expect(JSON.stringify(retry.messages[2].content)).toContain('framer-motion');
   });
 
+  it('recovers when the first attempt left a stray broken file behind', async () => {
+    const stray = VALID.replace('</file>', '</file>\n<file path="components/Old.tsx">export default function O() { return <div> }</file>');
+    const generate = fakeGenerate(stray);
+    const result = await buildProject(REQ, generate);
+    expect(result.ok && Object.keys(result.files)).toEqual(['App.tsx']);
+  });
+
   it('gives a readable error when the retry is still broken', async () => {
     const generate = fakeGenerate(INVALID, INVALID);
     const result = await buildProject(REQ, generate);

@@ -1,7 +1,9 @@
 import { createShapeId, type Editor } from 'tldraw';
 import { FRAME_TYPE } from '@/frame/frameTypes';
+import { MAX_IMAGE_BYTES } from '@/server/build/parseBuildRequest';
 import type { BuildRequest, BuildResponse } from '@/shared/types';
-import { checkSelection, fitScale, MAX_EXPORT_H, MAX_EXPORT_W } from './selectionHelpers';
+import { finishBuild, startBuild } from './buildTracker';
+import { checkSelection, EXPORT_PADDING, exportScale } from './selectionHelpers';
 
 const FRAME_GAP = 120;
 
@@ -16,13 +18,20 @@ export async function buildFromSelection(
   const bounds = editor.getSelectionPageBounds();
   if (!bounds) return { ok: false, error: 'Select a sketch or a screenshot first.' };
 
+  // pixelRatio 1: tldraw defaults PNG exports to 2x, which doubles the size without helping the model.
   const { blob } = await editor.toImage(
     shapes.map((s) => s.id),
-    { format: 'png', background: true, padding: 16, scale: fitScale(bounds.w, bounds.h, MAX_EXPORT_W, MAX_EXPORT_H) },
+    { format: 'png', background: true, padding: EXPORT_PADDING, pixelRatio: 1, scale: exportScale(bounds.w, bounds.h) },
   );
+  if (blob.size > MAX_IMAGE_BYTES) {
+    return { ok: false, error: 'This selection is too large to send (max 5 MB). Select less, or crop the screenshot.' };
+  }
   const imageBase64 = await blobToBase64(blob);
 
   const frameId = createShapeId();
+  // Own undo step for the new frame, so undoing a stroke drawn during the build doesn't also revert the result.
+  editor.markHistoryStoppingPoint('build');
+  startBuild(frameId);
   editor.createShape({
     id: frameId,
     type: FRAME_TYPE,
@@ -31,13 +40,23 @@ export async function buildFromSelection(
     props: { status: 'building' },
   });
 
-  const response = await postBuild({ kind: check.kind, imageBase64, note });
-  if (response.ok) {
-    editor.updateShape({ id: frameId, type: FRAME_TYPE, props: { status: 'ready', files: response.files, error: '' } });
-    return { ok: true };
+  const response = await postBuild({ kind: check.kind, imageBase64, note }).finally(() => finishBuild(frameId));
+  if (!editor.getShape(frameId)) {
+    return { ok: false, error: 'The page was built, but its frame was removed (undo or delete) before it finished.' };
   }
-  editor.updateShape({ id: frameId, type: FRAME_TYPE, props: { status: 'error', error: response.error } });
-  return { ok: false, error: response.error };
+  // The result lands in the frame's own history step, not in whatever the user drew while waiting.
+  editor.run(
+    () =>
+      editor.updateShape({
+        id: frameId,
+        type: FRAME_TYPE,
+        props: response.ok
+          ? { status: 'ready', files: response.files, error: '' }
+          : { status: 'error', error: response.error },
+      }),
+    { history: 'ignore' },
+  );
+  return response.ok ? { ok: true } : { ok: false, error: response.error };
 }
 
 async function postBuild(body: BuildRequest): Promise<BuildResponse> {
