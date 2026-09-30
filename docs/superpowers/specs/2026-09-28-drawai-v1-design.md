@@ -38,6 +38,9 @@ It does design and UI only. It is not a general chatbot, and there is no Q&A mod
 - The user draws **on** the frame (edits) and **around** it (new sections, notes, pasted images).
 - A **floating toolbar** at the bottom holds pen, ellipse, arrow, rectangle, sticky note, eraser, the mic toggle and undo.
 - A **transcript panel** on the right lists the numbered segments ①②③, and the same numbers appear as badges on the canvas.
+
+> **Changed in M2b:** the mic toggle (● Start / ■ Stop) sits in the transcript panel's header, not the bottom toolbar, because tldraw's own toolbar occupies the bottom. ● Start is refused while an edit or build is running.
+
 - **Draw mode vs. interact mode (`I` key):**
   - In draw mode (the default) the page ignores the pointer, so every stroke is ink.
   - In interact mode you can click links and buttons inside the page. Ink is disabled.
@@ -62,6 +65,8 @@ After an instruction is applied, its marks fade and are archived: hidden, but ke
 | **Blank canvas** | Draw a wireframe with shapes or the pen. In M1 you select it and click **Build**, with an optional typed note. From M2 you can also click ● Start and speak, and ■ Stop builds it. The build creates a frame next to the sketch. | M1 |
 | **Drop a screenshot** | The image lands on the board. "Build this" (button or voice) makes the AI rebuild it as React + Tailwind in a new frame beside it. | M1 |
 | **Paste a URL** | A server-side headless browser captures a full-page screenshot and cleaned HTML/CSS, and the AI rebuilds the page as React + Tailwind. | M4 |
+
+> **Changed in M2b:** ■ Stop builds when no marks are on a page and either a sketch is selected or loose strokes lie far from every page; the transcript is the build note. With exactly one page on the board and nothing drawn, instructions (typed or spoken) go to that page without selecting it.
 
 Imports are presented as "start from a reference", not "clone this site".
 
@@ -99,7 +104,7 @@ BROWSER                                          SERVER (Next.js)               
 | Canvas | **tldraw** | Custom shapes (live iframe frame), native arrows/ellipses/pen, snapshot persistence. **Risk:** production use needs a tldraw license, so confirm the cost before public launch (§10). |
 | Preview compile | `@babel/standalone` + custom JSX plugin, ES modules from `esm.sh` | Runs in the browser with no server build; the plugin injects `data-src` |
 | Styling in preview | Tailwind browser build (v4) | No build step per edit |
-| Speech-to-text | Streaming STT with per-word timestamps (default: Deepgram) | The transcript is ready the moment you press Stop, and word timings enable binding marks to words. Pick the exact provider at planning. |
+| Speech-to-text | **ElevenLabs Scribe v2 Realtime** (`scribe_v2_realtime`), streamed from the browser with a single-use token from `/api/stt-token`; manual commit on ■ Stop; word timestamps; filler words removed; UI keyterms. The SDK is loaded lazily (its own chunk) on the first ● Start. | The transcript is ready the moment you press Stop, and word timings enable binding marks to words. Chosen by the owner on 2026-09-30. |
 | AI | **DeepSeek `deepseek-flash`** (default; its only model that takes images) via its OpenAI-compatible API, with Claude (`claude-opus-5`) selectable by `AI_PROVIDER=anthropic`. The pipeline speaks provider-neutral chat types, and each provider has a small adapter. Tall images are sent as 1280px slices because DeepSeek shrinks each image to about 1300px. | Owner decision (2026-09-28): much lower cost per build. Keeping Claude switchable allows quality comparisons. |
 | Auth / DB / storage | Supabase (magic link + GitHub OAuth, Postgres, Storage) | Auth plus database plus file storage in one service |
 | URL capture (M4) | Small Playwright worker on Fly.io or Railway | Serverless can't comfortably run Chromium |
@@ -122,9 +127,11 @@ components/Pricing.tsx
 
 ### 4.1 Capture
 - **Audio:** streamed to the STT provider over a short-lived token issued by our server, so the provider key never reaches the browser.
+  > **Changed in M2b:** the browser captures and resamples the mic itself (AudioWorklet → 16 kHz PCM16), buffering from the click; the first sample's time anchors word timestamps on the stroke clock. The token fetch is bounded: the recorder gives up after 12 s and releases the mic.
 - **Strokes:** each tldraw shape the user creates while recording is logged as `{shapeId, type, points (page coordinates), tStart, tEnd}`.
   - Shapes made with tools (ellipse, arrow, rectangle, note) keep their type.
   - Freehand pen strokes are classified in §5.1.
+  > **Changed in M2b:** tool shapes' `tEnd` follows the drag until the pointer is released, so words said while dragging bind to that shape.
 - **Words:** `{text, tStart, tEnd}` from the STT output.
 
 ### 4.2 Building the numbered segments
@@ -133,6 +140,8 @@ components/Pricing.tsx
 3. **Collect speech-only runs.** Words that aren't attached to any mark form speech-only segments, which are split wherever a mark falls between them.
 4. **Number everything** in time order: ①②③…
 5. **Show it.** Each mark gets a number badge on the canvas and each segment gets a row in the transcript panel.
+
+> **Changed in M2b:** only marks are numbered; speech-only runs are unnumbered quoted rows in time order, and the prompt tags spoken runs with `[n]`. Words bind after ■ Stop, when Scribe returns word timings for the commit; live binding stays deferred (§12).
 
 Segments are *context, not strict commands*. The AI sees them in order, so "these ones… move them right" (a mark segment followed by a speech segment) is resolved by the model.
 
@@ -258,6 +267,8 @@ These cover the segmenter, the gesture classifier, the hit-tester, the prompt co
 ### 9.3 End-to-end
 Playwright tests of the main loop with a mocked STT feed and mocked AI responses: draw, then segment, then compile, then apply, then render, then undo.
 
+> **Changed in M2b:** Playwright E2E moves to M3, alongside the auth shell. M2b covers the logic with unit tests plus a live checklist.
+
 ---
 
 ## 10. Risks
@@ -275,7 +286,7 @@ Playwright tests of the main loop with a mocked STT feed and mocked AI responses
 1. **M1: Board + build.** tldraw board, the live preview frame shape (Babel + Tailwind + `data-src`), blank-canvas sketch → build, and screenshot → build. In M1 the frame's files live in the shape itself, so tldraw's undo and local browser persistence act as versioning. **M1 runs locally only**; don't deploy it publicly before M3 adds auth and limits.
 2. **M2: The edit loop**, built in two parts:
    - **M2a: point and edit.** Marks on the live page, numbered badges and target highlights, the gesture classifier, hit-testing, a typed instruction, the prompt compiler, the edit API with apply/verify/retry and a 45 s timeout, one-step undo, the automatic runtime fix, and the targeting eval.
-   - **M2b: voice.** Recording, streaming STT, word-to-mark binding, draw/interact mode (`I` key), and the recorded golden set with word logs.
+   - **M2b: voice (done; plan: `docs/superpowers/plans/2026-09-30-m2b-voice.md`).** Recording, streaming STT, word-to-mark binding, draw/interact mode (`I` key), and the recorded golden set with word logs. Still pending with the owner: live verification with a real `ELEVENLABS_API_KEY`, and recording at least 20 real voice eval cases.
 3. **M3: Product shell.** Supabase auth (invite-only), board and version persistence, daily limits, the usage/admin log, and ZIP export.
 4. **M4: URL import.** The Playwright capture worker and the HTML+screenshot → React + Tailwind conversion.
 
