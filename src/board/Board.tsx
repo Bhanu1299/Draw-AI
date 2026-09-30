@@ -8,7 +8,9 @@ import { FRAME_TYPE } from '@/frame/frameTypes';
 import { SAMPLE_FILES } from '@/frame/sampleFiles';
 import { registerMarkTracking } from '@/marks/markMeta';
 import { BuildBar } from './BuildBar';
+import { InteractToggle } from './InteractToggle';
 import { InstructionPanel } from './InstructionPanel';
+import { registerInteractMode } from './interactMode';
 import { MarkOverlay } from './MarkOverlay';
 import { findInterruptedFrames } from './selectionHelpers';
 
@@ -55,10 +57,16 @@ export default function Board() {
           recoverInterruptedBuilds(mounted);
           if (mounted.getCurrentPageShapes().length === 0) insertSampleFrame(mounted);
           setEditor(mounted);
-          return registerMarkTracking(mounted);
+          const offMarks = registerMarkTracking(mounted);
+          const offInteract = registerInteractMode(mounted);
+          return () => {
+            offMarks();
+            offInteract();
+          };
         }}
       />
       {editor && <BuildBar editor={editor} />}
+      {editor && <InteractToggle editor={editor} />}
       {editor && <InstructionPanel editor={editor} />}
     </div>
   );

@@ -72,6 +72,19 @@ window.addEventListener('unhandledrejection', (e) => {
   const reason = e.reason && e.reason.message ? e.reason.message : e.reason;
   window.__drawaiReport({ type: 'runtime-error', message: String(reason) });
 });
+// Interact mode: clicks stay on this page, and the board's I / Escape still work when the page has focus.
+document.addEventListener('click', (e) => {
+  const link = e.target instanceof Element ? e.target.closest('a[href]') : null;
+  if (link && !link.getAttribute('href').startsWith('#')) e.preventDefault();
+}, true);
+document.addEventListener('submit', (e) => e.preventDefault(), true);
+document.addEventListener('keydown', (e) => {
+  const t = e.target;
+  const typing = t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+  if (typing || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+  if (e.key === 'i' || e.key === 'I') window.__drawaiReport({ type: 'key', key: 'i' });
+  else if (e.key === 'Escape') window.__drawaiReport({ type: 'key', key: 'Escape' });
+});
 setTimeout(() => {
   if (!window.__drawaiReady) window.__drawaiReport({ type: 'runtime-error', message: ${JSON.stringify(LIBS_FAILED_MESSAGE)} });
 }, ${READY_TIMEOUT_MS});
@@ -127,6 +140,8 @@ try {
   createRoot(document.getElementById('root')).render(externals.react.createElement(App));
   window.__drawaiReady = true;
   new ResizeObserver(reportLayout).observe(document.body);
+  // Clicks in interact mode can open menus or tabs without resizing the page: re-measure after DOM changes.
+  new MutationObserver(reportLayout).observe(document.getElementById('root'), { subtree: true, childList: true, characterData: true });
 } catch (err) {
   report({ type: 'runtime-error', message: String(err && err.message ? err.message : err) });
 }

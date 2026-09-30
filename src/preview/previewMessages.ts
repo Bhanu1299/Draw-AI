@@ -15,6 +15,7 @@ export interface PreviewElement {
 export type PreviewMessage =
   | { type: 'height'; height: number }
   | { type: 'runtime-error'; message: string }
+  | { type: 'key'; key: 'i' | 'Escape' }
   | { type: 'elements'; elements: PreviewElement[] };
 
 export const MAX_ELEMENTS = 3000;
@@ -30,6 +31,7 @@ export function parsePreviewMessage(data: unknown): PreviewMessage | null {
   if (msg.type === 'runtime-error' && typeof msg.message === 'string') {
     return { type: 'runtime-error', message: msg.message };
   }
+  if (msg.type === 'key' && (msg.key === 'i' || msg.key === 'Escape')) return { type: 'key', key: msg.key };
   if (msg.type === 'elements' && Array.isArray(msg.elements)) {
     const elements = msg.elements.slice(0, MAX_ELEMENTS).map(toElement);
     // Parent indexes point into this list, so one bad entry makes the whole map untrustworthy.

@@ -40,4 +40,9 @@ describe('parsePreviewMessage', () => {
     const msg = parsePreviewMessage({ source: PREVIEW_SOURCE, type: 'elements', elements: Array(MAX_ELEMENTS + 5).fill(one) });
     expect(msg?.type === 'elements' && msg.elements.length).toBe(MAX_ELEMENTS);
   });
+  it('accepts the keys the page hands back to the board, and no others', () => {
+    expect(parsePreviewMessage({ source: PREVIEW_SOURCE, type: 'key', key: 'i' })).toEqual({ type: 'key', key: 'i' });
+    expect(parsePreviewMessage({ source: PREVIEW_SOURCE, type: 'key', key: 'Escape' })).toEqual({ type: 'key', key: 'Escape' });
+    expect(parsePreviewMessage({ source: PREVIEW_SOURCE, type: 'key', key: 'z' })).toBeNull();
+  });
 });

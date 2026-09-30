@@ -1,4 +1,5 @@
-import { BaseBoxShapeUtil, HTMLContainer, T, type RecordProps, type TLShape } from 'tldraw';
+import { BaseBoxShapeUtil, HTMLContainer, T, useValue, type RecordProps, type TLShape } from 'tldraw';
+import { interactMode } from '@/board/interactMode';
 import { FramePreview } from './FramePreview';
 import { FRAME_TYPE, type FrameProps } from './frameTypes';
 
@@ -33,6 +34,7 @@ export class FrameShapeUtil extends BaseBoxShapeUtil<FrameShape> {
   }
 
   component(shape: FrameShape) {
+    const interactive = useValue(interactMode);
     return (
       <HTMLContainer
         id={shape.id}
@@ -43,7 +45,7 @@ export class FrameShapeUtil extends BaseBoxShapeUtil<FrameShape> {
           boxShadow: '0 0 0 1px #d4d4d8',
           borderRadius: 8,
           overflow: 'hidden',
-          pointerEvents: 'none',
+          pointerEvents: interactive ? 'all' : 'none',
         }}
       >
         <FramePreview shape={shape} />

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useEditor } from 'tldraw';
+import { useEditor, useValue } from 'tldraw';
+import { applyInteractKey, interactMode } from '@/board/interactMode';
 import { isBuildInFlight } from '@/board/buildTracker';
 import { handlePreviewCrash } from '@/board/sendEdit';
 import { parsePreviewMessage } from '@/preview/previewMessages';
@@ -12,6 +13,7 @@ import { FRAME_TYPE } from './frameTypes';
 
 export function FramePreview({ shape }: { shape: FrameShape }) {
   const editor = useEditor();
+  const interactive = useValue(interactMode);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [html, setHtml] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -38,6 +40,10 @@ export function FramePreview({ shape }: { shape: FrameShape }) {
       if (event.source !== iframeRef.current?.contentWindow) return;
       const msg = parsePreviewMessage(event.data);
       if (!msg) return;
+      if (msg.type === 'key') {
+        applyInteractKey(editor, msg.key);
+        return;
+      }
       if (msg.type === 'elements') {
         setFrameElements(shape.id, msg.elements);
         return;
@@ -76,7 +82,7 @@ export function FramePreview({ shape }: { shape: FrameShape }) {
           title="Page preview"
           sandbox="allow-scripts"
           srcDoc={html}
-          style={{ width: '100%', height: '100%', border: 0, display: 'block', pointerEvents: 'none' }}
+          style={{ width: '100%', height: '100%', border: 0, display: 'block', pointerEvents: interactive ? 'auto' : 'none' }}
         />
       )}
       {problem && (
