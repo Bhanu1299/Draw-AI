@@ -1,26 +1,32 @@
 'use client';
 
-import { useState } from 'react';
 import { useValue, type Editor } from 'tldraw';
+import { timeline } from '@/marks/bindWords';
 import { describeMark } from '@/marks/describeMark';
-import { editStatus } from './editSession';
+import type { PlannedMark } from '@/marks/planEdit';
+import { editStatus, instructionDraft } from './editSession';
 import { recordEvalCase } from './recordEvalCase';
 import { sendEdit } from './sendEdit';
 import { useEditPlan } from './useEditPlan';
+import { VoiceButton } from './VoiceButton';
+import { voiceState } from './voiceSession';
 
 const STATUS_COLOR = { idle: '#71717a', working: '#2563eb', done: '#15803d', error: '#b91c1c' } as const;
 
 export function InstructionPanel({ editor }: { editor: Editor }) {
   const result = useEditPlan(editor);
   const status = useValue(editStatus);
-  const [text, setText] = useState('');
+  const voice = useValue(voiceState);
+  const text = useValue(instructionDraft);
   const plan = result.ok ? result.plan : null;
   const busy = status.phase === 'working';
-  const canSend = !!plan && !busy && (text.trim() !== '' || plan.marks.length > 0);
+  const listening = voice.phase !== 'idle';
+  const canSend = !!plan && !busy && !listening && (text.trim() !== '' || plan.marks.length > 0);
+  const rows = plan ? timeline(plan.marks, voice.runs) : [];
 
   async function onSend() {
     if (!plan || !canSend) return;
-    if (await sendEdit(editor, plan, text.trim())) setText('');
+    if (await sendEdit(editor, plan, text.trim())) instructionDraft.set('');
   }
 
   return (
@@ -41,22 +47,31 @@ export function InstructionPanel({ editor }: { editor: Editor }) {
         font: '14px/1.4 system-ui, sans-serif',
       }}
     >
-      <div style={{ fontWeight: 600, color: '#3f3f46' }}>Change the page</div>
-      {plan && plan.marks.length > 0 ? (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ fontWeight: 600, color: '#3f3f46' }}>Change the page</div>
+        <VoiceButton editor={editor} busy={busy} />
+      </div>
+      {voice.phase === 'recording' && (
+        <div style={{ color: '#71717a', fontStyle: 'italic' }}>{voice.partial ? `“${voice.partial}”` : 'Listening… talk and draw.'}</div>
+      )}
+      {rows.length > 0 ? (
         <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 4 }}>
-          {plan.marks.map((mark) => (
-            <li key={mark.n} style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-              <span style={{ color: mark.hit.unsure ? '#b45309' : '#2563eb', fontWeight: 600 }}>{mark.n}</span>
-              <span style={{ color: '#3f3f46' }}>{describeMark(mark)}</span>
-            </li>
-          ))}
+          {rows.map((row, i) =>
+            row.kind === 'mark' ? (
+              <MarkRow key={`m${row.mark.n}`} mark={row.mark} said={row.said} />
+            ) : (
+              <li key={`s${i}`} style={{ color: '#52525b', fontStyle: 'italic', paddingLeft: 20 }}>
+                “{row.text}”
+              </li>
+            ),
+          )}
         </ol>
       ) : (
         <div style={{ color: '#71717a' }}>{result.ok ? 'No marks: the change applies to the whole page.' : result.message}</div>
       )}
       <textarea
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => instructionDraft.set(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
@@ -65,7 +80,7 @@ export function InstructionPanel({ editor }: { editor: Editor }) {
         }}
         rows={3}
         disabled={busy}
-        placeholder='What should change? Refer to marks by number, e.g. "1 smaller".'
+        placeholder='Or type what should change. Refer to marks by number, e.g. "1 smaller".'
         style={{ resize: 'vertical', padding: '6px 10px', border: '1px solid #d4d4d8', borderRadius: 8, font: 'inherit' }}
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -100,5 +115,17 @@ export function InstructionPanel({ editor }: { editor: Editor }) {
         </div>
       )}
     </div>
+  );
+}
+
+function MarkRow({ mark, said }: { mark: PlannedMark; said: string }) {
+  return (
+    <li style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+      <span style={{ color: mark.hit.unsure ? '#b45309' : '#2563eb', fontWeight: 600 }}>{mark.n}</span>
+      <span style={{ color: '#3f3f46' }}>
+        {describeMark(mark)}
+        {said && <span style={{ display: 'block', color: '#52525b', fontStyle: 'italic' }}>“{said}”</span>}
+      </span>
+    </li>
   );
 }
