@@ -22,6 +22,8 @@ const MAX_COVERS = 8;
 const UNDERLINE_REACH_PX = 30;
 const ARROW_HEAD_BOX_PX = 40;
 const TIE_PX = 4;
+/** A container with children only counts as an arrow's move source when it is no more than this many times the target's area. */
+const MOVE_SOURCE_RATIO = 4;
 
 export interface HitPage {
   bounds: Rect;
@@ -130,8 +132,11 @@ function arrowHit(page: HitPage, tail: Point, head: Point): HitResult {
   const els = page.elements;
   const from = smallestAt(els, tail);
   const to = smallestAt(els, head);
-  // Tail on one element and head on an unrelated one: "move this there".
-  if (from !== null && to !== null && !related(els, from, to)) {
+  // Tail on one element and head on an unrelated one: "move this there". Arrows usually start in empty
+  // space, which still lies inside some layout container, so a big container with children is no source.
+  const isSource = (i: number) =>
+    !els.some((e) => e.parent === i) || (to !== null && rectArea(els[i].rect) <= MOVE_SOURCE_RATIO * rectArea(els[to].rect));
+  if (from !== null && to !== null && !related(els, from, to) && isSource(from)) {
     return withPointsTo(elementsHit(els, [from]), elementsHit(els, [to]));
   }
   return pointedAt(page, head);

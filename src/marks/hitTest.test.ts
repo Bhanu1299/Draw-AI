@@ -44,6 +44,11 @@ describe('hitTest: arrow', () => {
     expect(srcs(hit.target)).toEqual([src(6)]);
     expect(srcs(hit.pointsTo)).toEqual([src(15)]);
   });
+  it('does not read a tail in empty space inside a big container as a move', () => {
+    const hit = arrow({ x: 100, y: 400 }, { x: 1110, y: 36 });
+    expect(srcs(hit.target)).toEqual([src(6)]);
+    expect(hit.pointsTo).toBeUndefined();
+  });
   it('is unsure when the head lands on nothing', () => {
     const hit = arrow({ x: 1000, y: 300 }, { x: 1500, y: 300 });
     expect(hit.unsure).toBe(true);
