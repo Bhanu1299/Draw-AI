@@ -4,6 +4,8 @@ import { sttError } from './sttErrors';
 describe('sttError', () => {
   it('reads "no speech" as an empty result, not a failure', () => {
     expect(sttError({ message_type: 'insufficient_audio_activity', error: 'x' })).toEqual({ kind: 'no-speech' });
+    // A commit with too little new audio (e.g. Stop right after silence) is throttled: same as nothing said.
+    expect(sttError({ message_type: 'commit_throttled', error: 'x' })).toEqual({ kind: 'no-speech' });
   });
   it('says what to do for each kind of failure', () => {
     expect(sttError({ message_type: 'quota_exceeded', error: 'x' })).toEqual({ kind: 'failed', message: expect.stringContaining('credits') });

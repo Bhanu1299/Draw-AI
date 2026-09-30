@@ -178,7 +178,8 @@ export async function startRecording(deps: RecorderDeps, callbacks: RecorderCall
         if (!stopping) fail(LOST);
       },
     });
-  } catch {
+  } catch (err) {
+    console.warn('Voice: could not open the speech-to-text socket', err);
     mic.stop();
     throw new VoiceError(NO_CONNECT);
   }

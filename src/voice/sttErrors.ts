@@ -8,6 +8,7 @@ export function sttError(data: unknown): SttError {
   const detail = typeof record.error === 'string' ? record.error : data instanceof Error ? data.message : '';
   switch (record.message_type) {
     case 'insufficient_audio_activity':
+    case 'commit_throttled': // too little audio since the last commit: nothing new to transcribe
       return { kind: 'no-speech' };
     case 'auth_error':
       return failed('The voice service rejected the session. Check ELEVENLABS_API_KEY, or type your instruction.');
