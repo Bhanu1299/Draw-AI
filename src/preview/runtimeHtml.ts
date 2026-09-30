@@ -135,13 +135,23 @@ function reportLayout() {
   clearTimeout(elementsTimer);
   elementsTimer = setTimeout(() => report({ type: 'elements', elements: collectElements() }), 150);
 }
+// DOM mutations are throttled, not debounced: a busy page (clock, ticker) still gets a report every 500 ms,
+// and each report posts height once, however many mutations it covers.
+let mutationTimer = 0;
+function scheduleLayout() {
+  if (mutationTimer) return;
+  mutationTimer = setTimeout(() => {
+    mutationTimer = 0;
+    reportLayout();
+  }, 500);
+}
 try {
   const App = load(${JSON.stringify(entry)}).default;
   createRoot(document.getElementById('root')).render(externals.react.createElement(App));
   window.__drawaiReady = true;
   new ResizeObserver(reportLayout).observe(document.body);
   // Clicks in interact mode can open menus or tabs without resizing the page: re-measure after DOM changes.
-  new MutationObserver(reportLayout).observe(document.getElementById('root'), { subtree: true, childList: true, characterData: true });
+  new MutationObserver(scheduleLayout).observe(document.getElementById('root'), { subtree: true, childList: true, characterData: true });
 } catch (err) {
   report({ type: 'runtime-error', message: String(err && err.message ? err.message : err) });
 }

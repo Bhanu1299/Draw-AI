@@ -6,10 +6,14 @@ export const interactMode = atom<boolean>('interact mode', false);
 
 export function setInteractMode(editor: Editor, on: boolean): void {
   if (interactMode.get() === on) return;
-  interactMode.set(on);
   if (on) {
+    // Switch the tool first: the ink reaction would otherwise see interact mode with a drawing tool and undo it.
     editor.setCurrentTool('select');
-  } else if (document.activeElement instanceof HTMLIFrameElement) {
+    interactMode.set(true);
+    return;
+  }
+  interactMode.set(false);
+  if (document.activeElement instanceof HTMLIFrameElement) {
     // Focus stayed in the page after a click: give the keyboard back to the board.
     document.activeElement.blur();
     editor.focus();

@@ -19,7 +19,10 @@ describe('buildRuntimeHtml', () => {
     expect(html).toContain("closest('a[href]')");
     expect(html).toContain("addEventListener('submit'");
     expect(html).toContain("type: 'key'");
-    expect(html).toContain('new MutationObserver(reportLayout)');
+    expect(html).toContain('new MutationObserver(scheduleLayout)');
+    // Throttled with a 500 ms max wait, so a page that never stops mutating still reports.
+    expect(html).toContain('if (mutationTimer) return;');
+    expect(html).toContain('}, 500);');
   });
   it('embeds modules without breaking out of the script tag', () => {
     const html = buildRuntimeHtml({ 'App.tsx': { code: 'const s = "</script>";', deps: {} } }, 'App.tsx');
