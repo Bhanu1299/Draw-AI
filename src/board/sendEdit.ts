@@ -3,7 +3,7 @@ import type { FrameShape } from '@/frame/FrameShapeUtil';
 import { FRAME_TYPE } from '@/frame/frameTypes';
 import { needsInk, planShapeIds, statusLine, toSegment, type EditPlan, type PlannedMark } from '@/marks/planEdit';
 import { unionRects } from '@/shared/geometry';
-import type { EditRequest, EditResponse } from '@/shared/types';
+import type { EditRequest, EditResponse, SpeechRun } from '@/shared/types';
 import { postApi } from './api';
 import { decideOnCrash } from './crashPolicy';
 import { editStatus, forgetEdit, getEditRecord, rememberEdit, type EditRecord } from './editSession';
@@ -24,8 +24,8 @@ function fail(text: string): false {
   return false;
 }
 
-/** Send the plan and instruction; apply the result and remove the sent marks as one undo step. */
-export async function sendEdit(editor: Editor, plan: EditPlan, instruction: string): Promise<boolean> {
+/** Send the plan, instruction and speech; apply the result and remove the sent marks as one undo step. */
+export async function sendEdit(editor: Editor, plan: EditPlan, instruction: string, speech: SpeechRun[] = []): Promise<boolean> {
   const frame = getFrame(editor, plan.frameId);
   if (!frame) return fail('That page is gone. Draw on another page.');
   const files = frame.props.files;
@@ -34,7 +34,12 @@ export async function sendEdit(editor: Editor, plan: EditPlan, instruction: stri
   const segments = await Promise.all(
     plan.marks.map(async (mark) => toSegment(mark, needsInk(mark) ? await inkPng(editor, mark) : undefined)),
   );
-  const response = await postApi<EditResponse>('/api/edit', { files, segments, instruction } satisfies EditRequest);
+  const response = await postApi<EditResponse>('/api/edit', {
+    files,
+    segments,
+    instruction,
+    ...(speech.length > 0 ? { speech } : {}),
+  } satisfies EditRequest);
 
   const current = getFrame(editor, plan.frameId);
   if (!current) return fail('The page was removed before the edit finished.');

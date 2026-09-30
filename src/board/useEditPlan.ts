@@ -18,3 +18,8 @@ function planFor(editor: Editor): Computed<PlanResult> {
 export function useEditPlan(editor: Editor): PlanResult {
   return useValue(planFor(editor));
 }
+
+/** The plan right now, outside React (voice Stop). */
+export function currentPlan(editor: Editor): PlanResult {
+  return planFor(editor).get();
+}

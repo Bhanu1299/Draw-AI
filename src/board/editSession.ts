@@ -28,3 +28,6 @@ export function getEditRecord(frameId: TLShapeId): EditRecord | undefined {
 export function forgetEdit(frameId: TLShapeId): void {
   records.delete(frameId);
 }
+
+/** The panel's text box. Voice reads it too, so typed and spoken instructions go out together. */
+export const instructionDraft = atom<string>('instruction draft', '');
