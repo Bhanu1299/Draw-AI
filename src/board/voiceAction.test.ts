@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PlannedMark, PlanResult } from '@/marks/planEdit';
 import { DIDNT_CATCH } from '@/voice/recorder';
 import { MARK_META_KEY } from '@/marks/markMeta';
-import { decideVoiceAction, formatElapsed, voiceCanBuildSelection, type VoiceContext } from './voiceAction';
+import { appendSpeech, decideVoiceAction, formatElapsed, voiceCanBuildSelection, type VoiceContext } from './voiceAction';
 
 const withMarks = (count: number): PlanResult => ({
   ok: true,
@@ -79,6 +79,18 @@ describe('voiceCanBuildSelection', () => {
   it('never builds from nothing or from a page', () => {
     expect(voiceCanBuildSelection([])).toBe(false);
     expect(voiceCanBuildSelection([{ type: 'drawai-frame', meta: {} }])).toBe(false);
+  });
+});
+
+describe('appendSpeech', () => {
+  it('keeps what was said in the text box so it can be fixed and sent as text', () => {
+    expect(appendSpeech('', 'make these smaller')).toBe('make these smaller');
+    expect(appendSpeech('blue', 'make these smaller')).toBe('blue\nmake these smaller');
+    expect(appendSpeech('  ', 'make these smaller')).toBe('make these smaller');
+  });
+  it('leaves the text box alone when nothing was said', () => {
+    expect(appendSpeech('blue', '  ')).toBe('blue');
+    expect(appendSpeech('', '')).toBe('');
   });
 });
 

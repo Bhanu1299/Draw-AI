@@ -46,6 +46,12 @@ export function voiceCanBuildSelection(shapes: ReadonlyArray<{ type: string; met
   return !shapes.every((s) => readMarkMeta(s)?.used === true);
 }
 
+/** The text box after a voice instruction couldn't be carried out: the words stay, to fix and send as text. */
+export function appendSpeech(draft: string, said: string): string {
+  if (!said.trim()) return draft;
+  return draft.trim() ? `${draft}\n${said}` : said;
+}
+
 export function formatElapsed(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;

@@ -8,7 +8,7 @@ export interface VoiceState {
   startedAt: number;
   /** Live, unconfirmed transcript while recording. */
   partial: string;
-  /** What the last instruction's words were bound to, shown until it succeeds or a new one starts. */
+  /** What each mark heard, shown only while that voice edit runs. */
   runs: BoundRun[];
 }
 

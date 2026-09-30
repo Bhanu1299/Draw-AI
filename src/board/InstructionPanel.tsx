@@ -27,7 +27,10 @@ export function InstructionPanel({ editor }: { editor: Editor }) {
 
   async function onSend() {
     if (!plan || !canSend) return;
-    if (await sendEdit(editor, plan, text.trim())) instructionDraft.set('');
+    if (await sendEdit(editor, plan, text.trim())) {
+      instructionDraft.set('');
+      voiceState.update((s) => ({ ...s, runs: [] })); // no old words left on the new marks
+    }
   }
 
   return (

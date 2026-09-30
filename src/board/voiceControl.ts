@@ -14,7 +14,7 @@ import { editStatus, instructionDraft } from './editSession';
 import { recordEvalCase } from './recordEvalCase';
 import { sendEdit } from './sendEdit';
 import { currentPlan } from './useEditPlan';
-import { decideVoiceAction, voiceCanBuildSelection } from './voiceAction';
+import { appendSpeech, decideVoiceAction, voiceCanBuildSelection } from './voiceAction';
 import { IDLE_VOICE, saveVoiceEvalCases, voiceState } from './voiceSession';
 
 let recording: Recording | null = null;
@@ -103,6 +103,7 @@ async function actOnVoice(editor: Editor, words: Word[], typed: string, since: n
   });
   if (action.kind === 'none') {
     editStatus.set({ phase: 'error', text: action.message });
+    keepSpeech(said); // up to a minute of talking isn't lost: it can be fixed and sent as text
     return false;
   }
   if (action.kind === 'build') return buildFromVoice(editor, action.from, [typed.trim(), said].filter(Boolean).join('\n'));
@@ -110,9 +111,19 @@ async function actOnVoice(editor: Editor, words: Word[], typed: string, since: n
   const runs = bindWords(action.plan.marks, words);
   if (process.env.NODE_ENV !== 'production' && saveVoiceEvalCases.get()) recordEvalCase(editor, action.plan, words);
   voiceState.update((s) => ({ ...s, runs })); // the panel shows what each mark heard while the edit runs
-  const ok = await sendEdit(editor, action.plan, typed.trim(), toSpeech(runs));
-  if (ok) voiceState.update((s) => ({ ...s, runs: [] }));
+  let ok = false;
+  try {
+    ok = await sendEdit(editor, action.plan, typed.trim(), toSpeech(runs));
+  } finally {
+    voiceState.update((s) => ({ ...s, runs: [] })); // stale runs would attach old words to the next marks
+    if (!ok) keepSpeech(said);
+  }
   return ok;
+}
+
+/** Put the transcript in the text box, after anything typed there. */
+function keepSpeech(said: string): void {
+  instructionDraft.set(appendSpeech(instructionDraft.get(), said));
 }
 
 async function buildFromVoice(editor: Editor, from: 'selection' | string[], note: string): Promise<boolean> {
