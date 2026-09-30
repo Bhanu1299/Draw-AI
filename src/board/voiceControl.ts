@@ -1,7 +1,7 @@
 import type { Editor, TLShapeId } from 'tldraw';
 import { bindWords, toSpeech } from '@/marks/bindWords';
 import { looseShapeIds } from '@/marks/planEdit';
-import { readFrames, readPendingStrokes } from '@/marks/readBoard';
+import { readFrames, readPendingStrokes, selectedFrameId } from '@/marks/readBoard';
 import type { Word } from '@/marks/types';
 import { MAX_NOTE_CHARS } from '@/server/build/parseBuildRequest';
 import type { SttTokenResponse } from '@/shared/types';
@@ -12,22 +12,24 @@ import { postApi } from './api';
 import { buildFromSelection } from './buildFromSelection';
 import { editStatus, instructionDraft } from './editSession';
 import { recordEvalCase } from './recordEvalCase';
-import { checkSelection } from './selectionHelpers';
 import { sendEdit } from './sendEdit';
 import { currentPlan } from './useEditPlan';
-import { decideVoiceAction } from './voiceAction';
+import { decideVoiceAction, voiceCanBuildSelection } from './voiceAction';
 import { IDLE_VOICE, saveVoiceEvalCases, voiceState } from './voiceSession';
 
 let recording: Recording | null = null;
 let autoStop: ReturnType<typeof setTimeout> | undefined;
 /** Bumped by cancelVoice and each start, so a start that finishes late can tell it was cancelled or superseded. */
 let generation = 0;
+/** When ● Start was pressed (stroke clock): only strokes drawn since then can be a new sketch to build. */
+let clickedAt = 0;
 
 /** ● Start: open the mic and the STT session. Errors land in the panel's status line. */
 export async function startVoice(editor: Editor): Promise<void> {
   if (voiceState.get().phase !== 'idle') return;
   if (editStatus.get().phase === 'working') return; // an edit or build is running
   const mine = ++generation;
+  clickedAt = Date.now();
   voiceState.set({ ...IDLE_VOICE, phase: 'starting' });
   editStatus.set({ phase: 'idle', text: '' });
   try {
@@ -76,7 +78,7 @@ export async function stopVoice(editor: Editor): Promise<void> {
     return;
   }
   voiceState.set(IDLE_VOICE);
-  if (await actOnVoice(editor, words, instructionDraft.get())) instructionDraft.set('');
+  if (await actOnVoice(editor, words, instructionDraft.get(), clickedAt)) instructionDraft.set('');
 }
 
 /** Drop the recording without acting on it. */
@@ -88,14 +90,16 @@ export function cancelVoice(): void {
   voiceState.set(IDLE_VOICE);
 }
 
-async function actOnVoice(editor: Editor, words: Word[], typed: string): Promise<boolean> {
+async function actOnVoice(editor: Editor, words: Word[], typed: string, since: number): Promise<boolean> {
   const said = transcriptOf(words);
   const action = decideVoiceAction({
     said,
     typed,
     plan: currentPlan(editor),
-    selectionBuildable: checkSelection(editor.getSelectedShapes()).ok,
-    looseShapeIds: looseShapeIds(readPendingStrokes(editor), readFrames(editor)),
+    selectionBuildable: voiceCanBuildSelection(editor.getSelectedShapes()),
+    pageSelected: selectedFrameId(editor) !== null,
+    // Old unused strokes (a note from earlier) are not a new sketch: only what was drawn while talking.
+    looseShapeIds: looseShapeIds(readPendingStrokes(editor).filter((s) => s.t0 >= since), readFrames(editor)),
   });
   if (action.kind === 'none') {
     editStatus.set({ phase: 'error', text: action.message });

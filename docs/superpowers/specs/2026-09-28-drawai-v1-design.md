@@ -66,7 +66,7 @@ After an instruction is applied, its marks fade and are archived: hidden, but ke
 | **Drop a screenshot** | The image lands on the board. "Build this" (button or voice) makes the AI rebuild it as React + Tailwind in a new frame beside it. | M1 |
 | **Paste a URL** | A server-side headless browser captures a full-page screenshot and cleaned HTML/CSS, and the AI rebuilds the page as React + Tailwind. | M4 |
 
-> **Changed in M2b:** ■ Stop builds when no marks are on a page and either a sketch is selected or loose strokes lie far from every page; the transcript is the build note. With exactly one page on the board and nothing drawn, instructions (typed or spoken) go to that page without selecting it.
+> **Changed in M2b:** ■ Stop builds when no marks are on a page and either a sketch is selected or loose strokes lie far from every page; the transcript is the build note. A sketch that was already built doesn't count, only strokes drawn during the recording count as loose, and a selected page takes the words (a whole-page edit) before loose strokes do. With exactly one page on the board and nothing drawn, instructions (typed or spoken) go to that page without selecting it.
 
 Imports are presented as "start from a reference", not "clone this site".
 
