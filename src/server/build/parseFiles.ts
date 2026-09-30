@@ -8,7 +8,7 @@ const FENCED_RE = /^```[A-Za-z]*\n([\s\S]*?)\n?```$/;
 export function parseFiles(text: string): ProjectFiles {
   const files: ProjectFiles = {};
   for (const [, rawPath, body] of text.matchAll(FILE_RE)) {
-    files[rawPath.trim().replace(/^\.?\//, '')] = cleanBody(body);
+    files[normalizePath(rawPath)] = cleanBody(body);
   }
   return files;
 }
@@ -18,7 +18,11 @@ export function parseSummary(text: string): string | null {
   return match ? match[1].trim() : null;
 }
 
-function cleanBody(body: string): string {
+export function normalizePath(path: string): string {
+  return path.trim().replace(/^\.?\//, '');
+}
+
+export function cleanBody(body: string): string {
   let code = body.replace(/^\s*\n/, '').replace(/\s+$/, '');
   const fenced = code.match(FENCED_RE);
   if (fenced) code = fenced[1];
