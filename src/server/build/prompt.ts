@@ -4,6 +4,13 @@ import type { BuildRequest } from '@/shared/types';
 
 const IMPORTABLE = ALLOWED_PACKAGES.filter((p) => p !== 'react/jsx-runtime').join(', ');
 
+export const CODE_RULES = `- App.tsx default-exports the page component. Put each page section in its own components/Name.tsx file with a default export.
+- Use TypeScript function components. Style only with Tailwind CSS v4 utility classes.
+- You may import only: ${IMPORTABLE}, and relative imports between your own files. No CSS files and no other packages.
+- lucide-react has no brand or company logos (GitHub, X/Twitter, LinkedIn and so on): draw those as small inline <svg> elements.
+- For images, use https://placehold.co/WIDTHxHEIGHT placeholder URLs.
+- Design for a 1280px wide desktop viewport. Never use viewport-height units (vh, dvh, svh or h-screen): the preview grows to fit the page, so use fixed heights like min-h-[800px] instead.`;
+
 export const BUILD_SYSTEM_PROMPT = `You turn a whiteboard sketch or a screenshot into a single web page built with React and Tailwind CSS.
 
 Output format (follow exactly):
@@ -12,12 +19,7 @@ Output format (follow exactly):
 - Write nothing else: no markdown fences, no explanations.
 
 Code rules:
-- App.tsx default-exports the page component. Put each page section in its own components/Name.tsx file with a default export.
-- Use TypeScript function components. Style only with Tailwind CSS v4 utility classes.
-- You may import only: ${IMPORTABLE}, and relative imports between your own files. No CSS files and no other packages.
-- lucide-react has no brand or company logos (GitHub, X/Twitter, LinkedIn and so on): draw those as small inline <svg> elements.
-- For images, use https://placehold.co/WIDTHxHEIGHT placeholder URLs.
-- Design for a 1280px wide desktop viewport. Never use viewport-height units (vh, dvh, svh or h-screen): the preview grows to fit the page, so use fixed heights like min-h-[800px] instead.
+${CODE_RULES}
 
 How to read the input:
 - sketch: boxes are layout regions, handwritten words are content or labels, and arrows or notes are instructions to you, not content to show. Fill gaps with sensible, realistic content.
