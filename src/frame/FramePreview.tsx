@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useEditor } from 'tldraw';
 import { isBuildInFlight } from '@/board/buildTracker';
 import { parsePreviewMessage } from '@/preview/previewMessages';
+import { setFrameElements } from './elementRegistry';
 import { nextFrameHeight } from './frameHeight';
 import type { FrameShape } from './FrameShapeUtil';
 import { FRAME_TYPE } from './frameTypes';
@@ -36,6 +37,10 @@ export function FramePreview({ shape }: { shape: FrameShape }) {
       if (event.source !== iframeRef.current?.contentWindow) return;
       const msg = parsePreviewMessage(event.data);
       if (!msg) return;
+      if (msg.type === 'elements') {
+        setFrameElements(shape.id, msg.elements);
+        return;
+      }
       if (msg.type === 'runtime-error') {
         setProblem(msg.message);
         return;

@@ -1,3 +1,5 @@
+import { DATA_SRC_ATTR } from './dataSrcPlugin';
+
 export interface CompiledModule {
   code: string;
   /** Relative import specifier → resolved project path. */
@@ -96,11 +98,35 @@ function load(path) {
   new Function('require', 'module', 'exports', mod.code)(require, module, module.exports);
   return module.exports;
 }
+function collectElements() {
+  const nodes = Array.from(document.querySelectorAll('[${DATA_SRC_ATTR}]'));
+  const index = new Map(nodes.map((node, i) => [node, i]));
+  return nodes.map((node) => {
+    const r = node.getBoundingClientRect();
+    let parent = node.parentElement;
+    while (parent && !index.has(parent)) parent = parent.parentElement;
+    const label = node.innerText || node.getAttribute('alt') || node.getAttribute('placeholder') || node.getAttribute('aria-label') || '';
+    return {
+      src: node.getAttribute('${DATA_SRC_ATTR}'),
+      tag: node.tagName.toLowerCase(),
+      text: label.replace(/\\s+/g, ' ').trim().slice(0, 60),
+      rect: { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height },
+      parent: parent ? index.get(parent) : -1,
+    };
+  });
+}
+let elementsTimer;
+function reportLayout() {
+  report({ type: 'height', height: document.documentElement.scrollHeight });
+  // Element rects drive hit-testing: let layout settle (images, fonts) before measuring.
+  clearTimeout(elementsTimer);
+  elementsTimer = setTimeout(() => report({ type: 'elements', elements: collectElements() }), 150);
+}
 try {
   const App = load(${JSON.stringify(entry)}).default;
   createRoot(document.getElementById('root')).render(externals.react.createElement(App));
   window.__drawaiReady = true;
-  new ResizeObserver(() => report({ type: 'height', height: document.documentElement.scrollHeight })).observe(document.body);
+  new ResizeObserver(reportLayout).observe(document.body);
 } catch (err) {
   report({ type: 'runtime-error', message: String(err && err.message ? err.message : err) });
 }

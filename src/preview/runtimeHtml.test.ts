@@ -8,6 +8,12 @@ describe('safeJsonForScript', () => {
 });
 
 describe('buildRuntimeHtml', () => {
+  it('reports the tagged element map after layout', () => {
+    const html = buildRuntimeHtml({ 'App.tsx': { code: '', deps: {} } }, 'App.tsx');
+    expect(html).toContain("querySelectorAll('[data-src]')");
+    expect(html).toContain("type: 'elements'");
+    expect(html).toContain('new ResizeObserver(reportLayout)');
+  });
   it('embeds modules without breaking out of the script tag', () => {
     const html = buildRuntimeHtml({ 'App.tsx': { code: 'const s = "</script>";', deps: {} } }, 'App.tsx');
     // Only the three real closing tags: Tailwind, the error guard and the module script.
