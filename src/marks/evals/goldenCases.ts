@@ -1,4 +1,4 @@
-import { arrowHead, arrowStroke, line, loopAround, PAGE, rectOf, rectOutline, src, stroke, zigzag } from '../testing';
+import { arrowHead, arrowStroke, line, loopAround, PAGE, rectOf, rectOutline, said, src, stroke, zigzag } from '../testing';
 import type { EvalCase } from './score';
 
 const one = (name: string, strokes: EvalCase['strokes'], expected: EvalCase['expected']): EvalCase => ({
@@ -57,6 +57,66 @@ export const GOLDEN_CASES: EvalCase[] = [
     [
       { n: 1, gesture: 'circle', targets: [src(3)] },
       { n: 2, gesture: 'cross-out', targets: [src(13)] },
+    ],
+  ),
+];
+
+const voice = (
+  name: string,
+  strokes: EvalCase['strokes'],
+  words: NonNullable<EvalCase['words']>,
+  expected: EvalCase['expected'],
+  expectedSpeech: NonNullable<EvalCase['expectedSpeech']>,
+): EvalCase => ({ ...one(name, strokes, expected), words, expectedSpeech });
+
+/** Synthetic voice instructions: strokes plus a word log. Real recordings go in ./cases (Task 11). */
+export const VOICE_CASES: EvalCase[] = [
+  voice(
+    'circle the nav while saying "make these smaller"',
+    [stroke('draw', loopAround(rectOf(3)), 1000)],
+    said('make these smaller', 900),
+    [{ n: 1, gesture: 'circle', targets: [src(3)] }],
+    [{ mark: 1, text: 'make these smaller' }],
+  ),
+  voice(
+    'two marks with their own words, then a whole-page ask',
+    [stroke('draw', loopAround(rectOf(3)), 1000), stroke('draw', zigzag({ x: 490, y: 720, w: 300, h: 260 }), 4000)],
+    [...said('make these smaller', 900), ...said('remove this card', 3900), ...said('and make it all more premium', 7000)],
+    [
+      { n: 1, gesture: 'circle', targets: [src(3)] },
+      { n: 2, gesture: 'cross-out', targets: [src(13)] },
+    ],
+    [
+      { mark: 1, text: 'make these smaller' },
+      { mark: 2, text: 'remove this card' },
+      { mark: null, text: 'and make it all more premium' },
+    ],
+  ),
+  voice(
+    '"these ones… move them right": the model resolves the reference',
+    [stroke('ellipse', loopAround({ x: 900, y: 24, w: 160, h: 24 }), 1000)],
+    [...said('these ones', 1000), ...said('move them right', 4000)],
+    [{ n: 1, gesture: 'circle', targets: [src(4), src(5)] }],
+    [
+      { mark: 1, text: 'these ones' },
+      { mark: null, text: 'move them right' },
+    ],
+  ),
+  voice(
+    'tool arrow dragged out while talking',
+    [{ ...stroke('arrow', [{ x: 1110, y: 36 }, { x: 640, y: 1200 }], 1000), t1: 2600 }],
+    said('move blog to the footer', 1200),
+    [{ n: 1, gesture: 'arrow', targets: [src(6)], pointsTo: [src(15)] }],
+    [{ mark: 1, text: 'move blog to the footer' }],
+  ),
+  voice(
+    'a silent mark splits the speech around it',
+    [stroke('draw', line({ x: 360, y: 278 }, { x: 920, y: 278 }), 3000)],
+    [...said('make it dark', 0), ...said('and bigger', 5000)],
+    [{ n: 1, gesture: 'underline', targets: [src(8)] }],
+    [
+      { mark: null, text: 'make it dark' },
+      { mark: null, text: 'and bigger' },
     ],
   ),
 ];

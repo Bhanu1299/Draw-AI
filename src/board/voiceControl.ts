@@ -11,11 +11,12 @@ import { transcriptOf } from '@/voice/words';
 import { postApi } from './api';
 import { buildFromSelection } from './buildFromSelection';
 import { editStatus, instructionDraft } from './editSession';
+import { recordEvalCase } from './recordEvalCase';
 import { checkSelection } from './selectionHelpers';
 import { sendEdit } from './sendEdit';
 import { currentPlan } from './useEditPlan';
 import { decideVoiceAction } from './voiceAction';
-import { IDLE_VOICE, voiceState } from './voiceSession';
+import { IDLE_VOICE, saveVoiceEvalCases, voiceState } from './voiceSession';
 
 let recording: Recording | null = null;
 let autoStop: ReturnType<typeof setTimeout> | undefined;
@@ -103,6 +104,7 @@ async function actOnVoice(editor: Editor, words: Word[], typed: string): Promise
   if (action.kind === 'build') return buildFromVoice(editor, action.from, [typed.trim(), said].filter(Boolean).join('\n'));
 
   const runs = bindWords(action.plan.marks, words);
+  if (process.env.NODE_ENV !== 'production' && saveVoiceEvalCases.get()) recordEvalCase(editor, action.plan, words);
   voiceState.update((s) => ({ ...s, runs })); // the panel shows what each mark heard while the edit runs
   const ok = await sendEdit(editor, action.plan, typed.trim(), toSpeech(runs));
   if (ok) voiceState.update((s) => ({ ...s, runs: [] }));

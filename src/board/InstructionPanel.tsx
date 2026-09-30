@@ -9,7 +9,7 @@ import { recordEvalCase } from './recordEvalCase';
 import { sendEdit } from './sendEdit';
 import { useEditPlan } from './useEditPlan';
 import { VoiceButton } from './VoiceButton';
-import { voiceState } from './voiceSession';
+import { saveVoiceEvalCases, voiceState } from './voiceSession';
 
 const STATUS_COLOR = { idle: '#71717a', working: '#2563eb', done: '#15803d', error: '#b91c1c' } as const;
 
@@ -18,6 +18,7 @@ export function InstructionPanel({ editor }: { editor: Editor }) {
   const status = useValue(editStatus);
   const voice = useValue(voiceState);
   const text = useValue(instructionDraft);
+  const saveVoice = useValue(saveVoiceEvalCases);
   const plan = result.ok ? result.plan : null;
   const busy = status.phase === 'working';
   const listening = voice.phase !== 'idle';
@@ -107,6 +108,12 @@ export function InstructionPanel({ editor }: { editor: Editor }) {
           >
             Save as eval case
           </button>
+        )}
+        {process.env.NODE_ENV !== 'production' && (
+          <label style={{ color: '#71717a', font: '12px system-ui', display: 'flex', gap: 4, alignItems: 'center' }}>
+            <input type="checkbox" checked={saveVoice} onChange={(e) => saveVoiceEvalCases.set(e.target.checked)} />
+            save voice as eval
+          </label>
         )}
       </div>
       {status.phase !== 'idle' && (
