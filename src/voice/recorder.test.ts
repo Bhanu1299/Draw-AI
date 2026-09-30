@@ -113,6 +113,43 @@ describe('startRecording', () => {
     );
     expect(h.mic.stop).toHaveBeenCalled();
   });
+  it('treats a socket that throws on send as a lost connection, without throwing into the mic callback', async () => {
+    const h = harness();
+    await startRecording(h.deps, h.callbacks);
+    h.events().onOpen();
+    (h.socket.send as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error('WebSocket is not connected');
+    });
+    expect(() => h.feed(new Float32Array(1600))).not.toThrow();
+    expect(h.callbacks.onFailure).toHaveBeenCalledWith(expect.stringContaining('Lost the connection'));
+    expect(h.mic.stop).toHaveBeenCalled();
+  });
+  it('rejects Stop with a clear error when commit throws on a closing socket', async () => {
+    const h = harness();
+    (h.socket.commit as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error('WebSocket is not connected');
+    });
+    const rec = await startRecording(h.deps, h.callbacks);
+    h.feed(new Float32Array(1600));
+    h.events().onOpen();
+    await expect(rec.stop()).rejects.toSatisfy((e) => e instanceof VoiceError && e.message.includes('Lost the connection'));
+    expect(h.socket.close).toHaveBeenCalled();
+  });
+  it('rejects Stop with the lost-connection message when send throws during Stop', async () => {
+    const h = harness();
+    const rec = await startRecording(h.deps, h.callbacks);
+    h.feed(new Float32Array(500));
+    h.events().onOpen();
+    (h.socket.send as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error('WebSocket is not connected');
+    });
+    await expect(rec.stop()).rejects.toSatisfy((e) => e instanceof VoiceError && e.message.includes('Lost the connection'));
+  });
+  it('gives up on a token request that hangs, and releases the mic', async () => {
+    const h = harness({ fetchToken: () => new Promise(() => {}), tokenTimeoutMs: 30 });
+    await expect(startRecording(h.deps, h.callbacks)).rejects.toThrow("Couldn't reach the server");
+    expect(h.mic.stop).toHaveBeenCalled();
+  });
   it('cancels and reports when the session breaks mid-recording', async () => {
     const h = harness();
     const rec = await startRecording(h.deps, h.callbacks);

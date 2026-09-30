@@ -6,6 +6,7 @@ import { toWords, type SttWord } from './words';
 
 export const MAX_RECORDING_MS = 60_000;
 export const FINAL_WORDS_TIMEOUT_MS = 5_000;
+export const TOKEN_TIMEOUT_MS = 12_000;
 /** Audio goes out in 100 ms chunks. */
 const CHUNK_SAMPLES = STT_SAMPLE_RATE / 10;
 
@@ -44,6 +45,8 @@ export interface RecorderDeps {
   /** The stroke clock (Date.now). */
   now(): number;
   finalWordsTimeoutMs?: number;
+  /** How long to wait for the token before giving up (default TOKEN_TIMEOUT_MS). */
+  tokenTimeoutMs?: number;
 }
 
 export interface RecorderCallbacks {
@@ -60,7 +63,13 @@ export interface Recording {
 
 /** Start the mic right away (buffering), mint a token and open the STT session in parallel. */
 export async function startRecording(deps: RecorderDeps, callbacks: RecorderCallbacks): Promise<Recording> {
-  const token = deps.fetchToken().catch(() => ({ ok: false as const, error: NO_TOKEN }));
+  let tokenTimer: ReturnType<typeof setTimeout> | undefined;
+  const token = Promise.race([
+    deps.fetchToken().catch(() => ({ ok: false as const, error: NO_TOKEN })),
+    new Promise<{ ok: false; error: string }>((resolve) => {
+      tokenTimer = setTimeout(() => resolve({ ok: false, error: NO_TOKEN }), deps.tokenTimeoutMs ?? TOKEN_TIMEOUT_MS);
+    }),
+  ]).finally(() => clearTimeout(tokenTimer));
   const outbox: string[] = [];
   const pcm: number[] = [];
   const raw: SttWord[] = [];
@@ -94,7 +103,12 @@ export async function startRecording(deps: RecorderDeps, callbacks: RecorderCall
   }
   function flush() {
     if (!socket || !open || closed) return;
-    for (const chunk of outbox.splice(0)) socket.send(chunk);
+    try {
+      for (const chunk of outbox.splice(0)) socket.send(chunk);
+    } catch {
+      // The SDK throws when the socket is no longer open: the connection is lost.
+      fail(LOST);
+    }
   }
   function pack(all: boolean) {
     while (pcm.length >= CHUNK_SAMPLES || (all && pcm.length > 0)) {
@@ -183,8 +197,13 @@ export async function startRecording(deps: RecorderDeps, callbacks: RecorderCall
       if (start === null) return [];
       if (!closed) {
         flush();
+        if (failure) throw new VoiceError(failure);
         const before = wordEvents;
-        socket?.commit();
+        try {
+          socket?.commit();
+        } catch {
+          throw new VoiceError(LOST);
+        }
         await until(() => wordEvents > before || noSpeech || closed || failure !== null, wait);
         if (failure) throw new VoiceError(failure);
       }
