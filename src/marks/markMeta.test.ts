@@ -6,14 +6,18 @@ type Shape = { id: string; type: string; meta: Record<string, unknown>; props: R
 type Create = (shape: Shape, source: 'user' | 'remote') => Shape;
 type Change = (prev: Shape, next: Shape, source: 'user' | 'remote') => Shape;
 
+type Event = (info: { type: string; name: string }) => void;
+
 function fakeEditor() {
-  const handlers: { create?: Create; change?: Change } = {};
+  const handlers: { create?: Create; change?: Change; event?: Event } = {};
   const editor = {
     sideEffects: {
       registerBeforeCreateHandler: (_: string, h: Create) => ((handlers.create = h), () => {}),
       registerBeforeChangeHandler: (_: string, h: Change) => ((handlers.change = h), () => {}),
     },
-  } as unknown as Pick<Editor, 'sideEffects'>;
+    on: (_: string, h: Event) => (handlers.event = h),
+    off: () => {},
+  } as unknown as Pick<Editor, 'sideEffects' | 'on' | 'off'>;
   return { editor, handlers };
 }
 
@@ -50,5 +54,16 @@ describe('markMeta', () => {
     const done = draw({ [MARK_META_KEY]: { t0: 1000, t1: 1000, used: false } }, true);
     now = 9000;
     expect(readMarkMeta(handlers.change!(done, done, 'user'))?.t1).toBe(1000);
+  });
+  it('stretches t1 while a tool shape is dragged out, until the pointer is released', () => {
+    const { editor, handlers } = fakeEditor();
+    let now = 1000;
+    registerMarkTracking(editor, () => now);
+    const ellipse = handlers.create!({ id: 'shape:e', type: 'geo', meta: {}, props: {} }, 'user');
+    now = 2200;
+    expect(readMarkMeta(handlers.change!(ellipse, ellipse, 'user'))?.t1).toBe(2200);
+    handlers.event!({ type: 'pointer', name: 'pointer_up' });
+    now = 9000; // moving the finished mark later must not stretch it
+    expect(readMarkMeta(handlers.change!(ellipse, ellipse, 'user'))?.t1).toBe(1000);
   });
 });

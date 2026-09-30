@@ -1,4 +1,4 @@
-import type { Editor, JsonObject, TLShapeId } from 'tldraw';
+import type { Editor, JsonObject, TLEventInfo, TLShapeId } from 'tldraw';
 
 export const MARK_META_KEY = 'drawaiMark';
 /** Shapes that count as marks when the user draws them. Images and frames never do. */
@@ -20,23 +20,31 @@ export function withMarkMeta<S extends { meta: JsonObject }>(shape: S, mark: Mar
 }
 
 /**
- * Tag every drawing shape the user creates as a pending mark, and stretch its end time while a pen
- * stroke is still being drawn. Restored shapes (undo, revert) keep their original tag.
+ * Tag every drawing shape the user creates as a pending mark. While the pointer that created it is still
+ * down (a pen stroke, or an ellipse or arrow being dragged out), its end time follows along, so words said
+ * during the drag bind to it. Restored shapes (undo, revert) keep their original tag.
  */
-export function registerMarkTracking(editor: Pick<Editor, 'sideEffects'>, now: () => number = Date.now): () => void {
+export function registerMarkTracking(editor: Pick<Editor, 'sideEffects' | 'on' | 'off'>, now: () => number = Date.now): () => void {
+  const drawing = new Set<string>();
   const offCreate = editor.sideEffects.registerBeforeCreateHandler('shape', (shape, source) => {
     if (source !== 'user' || !MARK_SHAPE_TYPES.has(shape.type) || readMarkMeta(shape)) return shape;
     const t = now();
+    drawing.add(shape.id);
     return withMarkMeta(shape, { t0: t, t1: t, used: false });
   });
   const offChange = editor.sideEffects.registerBeforeChangeHandler('shape', (prev, next, source) => {
     const mark = readMarkMeta(next);
-    if (source !== 'user' || !mark || mark.used || !isBeingDrawn(prev)) return next;
+    if (source !== 'user' || !mark || mark.used || !(drawing.has(next.id) || isBeingDrawn(prev))) return next;
     return withMarkMeta(next, { ...mark, t1: now() });
   });
+  const onEvent = (info: TLEventInfo) => {
+    if (info.type === 'pointer' && info.name === 'pointer_up') drawing.clear();
+  };
+  editor.on('event', onEvent);
   return () => {
     offCreate();
     offChange();
+    editor.off('event', onEvent);
   };
 }
 

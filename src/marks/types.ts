@@ -24,3 +24,10 @@ export interface FrameInfo {
   /** Tagged elements in page coordinates; null until the preview reports them. */
   elements: PreviewElement[] | null;
 }
+
+/** One spoken word, on the same clock as strokes (epoch ms). */
+export interface Word {
+  text: string;
+  t0: number;
+  t1: number;
+}

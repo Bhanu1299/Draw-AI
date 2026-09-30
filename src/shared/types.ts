@@ -67,8 +67,16 @@ export interface EditRequest {
   files: ProjectFiles;
   segments: Segment[];
   instruction: string;
+  /** What the user said, in time order (voice instructions). */
+  speech?: SpeechRun[];
   /** Set to ask for a fix after the edited page crashed in the preview. */
   runtimeError?: string;
 }
 
 export type EditResponse = BuildResponse;
+
+/** Consecutive spoken words. `mark` is the number of the mark drawn while they were said, or null. */
+export interface SpeechRun {
+  mark: number | null;
+  text: string;
+}

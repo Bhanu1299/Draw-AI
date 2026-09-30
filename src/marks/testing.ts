@@ -1,6 +1,6 @@
 import type { PreviewElement } from '@/preview/previewMessages';
 import { boundsOf, type Point, type Rect } from '@/shared/geometry';
-import type { FrameInfo, Stroke, StrokeKind } from './types';
+import type { FrameInfo, Stroke, StrokeKind, Word } from './types';
 
 export const PAGE_BOUNDS: Rect = { x: 0, y: 0, w: 1280, h: 1400 };
 
@@ -91,4 +91,9 @@ export function rectOutline(r: Rect): Point[] {
     { x: r.x, y: r.y + r.h },
     { x: r.x, y: r.y },
   ];
+}
+
+/** Words spoken back to back from t0, perWordMs each. */
+export function said(text: string, t0: number, perWordMs = 300): Word[] {
+  return text.split(' ').map((w, i) => ({ text: w, t0: t0 + i * perWordMs, t1: t0 + (i + 1) * perWordMs }));
 }
