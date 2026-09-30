@@ -22,6 +22,12 @@ describe('validateProject', () => {
     expect(result.ok).toBe(false);
     expect(!result.ok && result.errors.join(' ')).toContain('styles.css');
   });
+  it('rejects icons lucide-react does not have', () => {
+    const app = 'import { Github } from "lucide-react";\nexport default function App() { return <Github />; }\n';
+    const result = validateProject({ 'App.tsx': app });
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.errors.join(' ')).toContain('"Github"');
+  });
   it('reports compile errors', () => {
     expect(validateProject({})).toEqual({ ok: false, errors: ['Missing App.tsx'] });
   });

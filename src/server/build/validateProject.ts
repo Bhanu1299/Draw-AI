@@ -1,5 +1,6 @@
 import { compileProject } from '@/preview/compileProject';
 import type { ProjectFiles } from '@/shared/types';
+import { checkIcons } from './checkIcons';
 
 const SAFE_PATH = /^(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+\.tsx?$/;
 
@@ -16,5 +17,7 @@ export function validateProject(files: ProjectFiles): ValidationResult {
     .filter((path) => !SAFE_PATH.test(path))
     .map((path) => `Invalid file path "${path}": use paths like App.tsx or components/Hero.tsx`);
   if (pathErrors.length > 0) return { ok: false, errors: pathErrors };
+  const iconErrors = result.paths.flatMap((path) => checkIcons(path, files[path]));
+  if (iconErrors.length > 0) return { ok: false, errors: iconErrors };
   return { ok: true, files: Object.fromEntries(result.paths.map((path) => [path, files[path]])) };
 }

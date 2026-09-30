@@ -7,10 +7,12 @@ export interface CompiledModule {
 export const PREVIEW_SOURCE = 'drawai-preview';
 
 const REACT = 'react@19.3.0';
+/** Must match the lucide-react in package.json: the server checks icon names against it. */
+export const LUCIDE_VERSION = '1.48.0';
 const EXTERNAL_URLS: Record<string, string> = {
   react: `https://esm.sh/${REACT}`,
   'react/jsx-runtime': `https://esm.sh/${REACT}/jsx-runtime`,
-  'lucide-react': `https://esm.sh/lucide-react@1.48.0?deps=${REACT}`,
+  'lucide-react': `https://esm.sh/lucide-react@${LUCIDE_VERSION}?deps=${REACT}`,
 };
 const REACT_DOM_CLIENT_URL = `https://esm.sh/react-dom@19.3.0/client?deps=${REACT}`;
 const TAILWIND_URL = 'https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3';

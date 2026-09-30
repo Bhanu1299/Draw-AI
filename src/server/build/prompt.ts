@@ -15,6 +15,7 @@ Code rules:
 - App.tsx default-exports the page component. Put each page section in its own components/Name.tsx file with a default export.
 - Use TypeScript function components. Style only with Tailwind CSS v4 utility classes.
 - You may import only: ${IMPORTABLE}, and relative imports between your own files. No CSS files and no other packages.
+- lucide-react has no brand or company logos (GitHub, X/Twitter, LinkedIn and so on): draw those as small inline <svg> elements.
 - For images, use https://placehold.co/WIDTHxHEIGHT placeholder URLs.
 - Design for a 1280px wide desktop viewport. Never use viewport-height units (vh, dvh, svh or h-screen): the preview grows to fit the page, so use fixed heights like min-h-[800px] instead.
 
