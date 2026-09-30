@@ -79,3 +79,24 @@ describe('editFixPrompt', () => {
     expect(prompt).not.toContain('--- components/Hero.tsx ---');
   });
 });
+
+describe('spoken instructions', () => {
+  it('lists what was said in time order, tagged with the mark drawn meanwhile', () => {
+    const text = textOf(
+      compileEditPrompt(
+        req({ segments: [circleNav], speech: [{ mark: 1, text: 'make these smaller' }, { mark: null, text: 'and make it all more premium' }] }),
+      ),
+    );
+    expect(text).toContain('Spoken, in time order ([n] = said while drawing mark n):\n[1] "make these smaller"\n"and make it all more premium"');
+    expect(text).not.toContain('Instruction:');
+  });
+  it('keeps a typed instruction next to the speech', () => {
+    const text = textOf(compileEditPrompt(req({ segments: [circleNav], speech: [{ mark: 1, text: 'smaller' }], instruction: 'use blue' })));
+    expect(text).toContain('[1] "smaller"');
+    expect(text).toContain('Instruction: use blue');
+  });
+  it('explains spoken marks in the system prompt', () => {
+    expect(EDIT_SYSTEM_PROMPT).toContain('[n]');
+    expect(EDIT_SYSTEM_PROMPT).toContain('context, not strict commands');
+  });
+});

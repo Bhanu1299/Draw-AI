@@ -2,12 +2,12 @@ import { ENTRY_FILE } from '@/preview/compileProject';
 import type { ChatPart } from '@/server/ai/chat';
 import { CODE_RULES } from '@/server/build/prompt';
 import { parseSrc, targetElements } from '@/shared/targets';
-import type { EditRequest, Gesture, MarkTarget, ProjectFiles, Segment, TargetElement } from '@/shared/types';
+import type { EditRequest, Gesture, MarkTarget, ProjectFiles, Segment, SpeechRun, TargetElement } from '@/shared/types';
 
 /** ~40k tokens: above this, whole-project prompts get slow and expensive (spec §6.1). */
 export const MAX_WHOLE_PROJECT_CHARS = 160_000;
 
-export const EDIT_SYSTEM_PROMPT = `You edit a web page built with React and Tailwind CSS. The user drew marks on the live page and typed an instruction.
+export const EDIT_SYSTEM_PROMPT = `You edit a web page built with React and Tailwind CSS. The user drew marks on the live page and said or typed an instruction.
 
 How to read the marks:
 - Marks are numbered 1, 2, 3… The instruction may refer to them as "1", "#1" or "①".
@@ -16,6 +16,7 @@ How to read the marks:
 - SKETCHED new UI: add new UI in that region. Boxes are layout regions and written words are labels or content. An ink image, when attached, shows the drawing.
 - "unsure" means the mark didn't land cleanly on an element: judge from its position and the ink image.
 - Element references look like <tag> "text" at path:line → the opening line of that element's JSX.
+- Spoken words come in time order; [n] tags words said while drawing mark n. They are context, not strict commands: "these… make them bigger" can refer to the mark drawn just before.
 
 Change only what the marks and the instruction ask for, and keep everything else exactly as it is, unless the instruction is about the whole page.
 
@@ -51,8 +52,10 @@ export function compileEditPrompt(req: EditRequest): EditPrompt {
     lines.push('After your last change the page crashes in the browser with this error:', req.runtimeError, '');
     lines.push('Fix the code so the page renders again. Change as little as possible.');
   } else {
+    const speech = req.speech ?? [];
     if (req.segments.length > 0) lines.push('Marks:', ...req.segments.flatMap((s) => describeSegment(s, req.files)), '');
-    lines.push(`Instruction: ${req.instruction.trim() || '(none: follow the marks)'}`);
+    if (speech.length > 0) lines.push('Spoken, in time order ([n] = said while drawing mark n):', ...speech.map(describeRun), '');
+    if (req.instruction.trim() || speech.length === 0) lines.push(`Instruction: ${req.instruction.trim() || '(none: follow the marks)'}`);
   }
   lines.push('');
   for (const path of paths) {
@@ -85,6 +88,8 @@ function filesToShow(req: EditRequest, paths: string[]): Set<string> | null {
   }
   return shown;
 }
+
+const describeRun = (r: SpeechRun): string => `${r.mark === null ? '' : `[${r.mark}] `}${JSON.stringify(r.text)}`;
 
 function describeSegment(s: Segment, files: ProjectFiles): string[] {
   const head = `${s.n}. ${LABEL[s.gesture]}${s.unsure ? ' (unsure)' : ''}`;

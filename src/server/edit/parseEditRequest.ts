@@ -1,9 +1,11 @@
-import type { EditRequest, MarkTarget, RegionDescription, Segment, TargetElement } from '@/shared/types';
+import type { EditRequest, MarkTarget, RegionDescription, Segment, SpeechRun, TargetElement } from '@/shared/types';
 
 export const MAX_FILES = 60;
 export const MAX_TOTAL_CHARS = 400_000;
 export const MAX_SEGMENTS = 20;
 export const MAX_INSTRUCTION_CHARS = 2000;
+export const MAX_SPEECH_RUNS = 60;
+export const MAX_SPEECH_CHARS = 4000;
 const MAX_INK_BYTES = 1024 * 1024;
 const GESTURES: ReadonlySet<unknown> = new Set(['circle', 'arrow', 'cross-out', 'underline', 'sketch']);
 const SIDES: ReadonlySet<unknown> = new Set(['left', 'right', 'above', 'below']);
@@ -12,7 +14,7 @@ export type ParseEditRequestResult = { ok: true; value: EditRequest } | { ok: fa
 
 export function parseEditRequest(body: unknown): ParseEditRequestResult {
   if (!isObject(body)) return fail('Request body must be a JSON object.');
-  const { files, segments, instruction, runtimeError } = body;
+  const { files, segments, instruction, runtimeError, speech } = body;
   if (!isObject(files) || !Object.values(files).every((v) => typeof v === 'string')) {
     return fail('files must map paths to file contents.');
   }
@@ -25,12 +27,22 @@ export function parseEditRequest(body: unknown): ParseEditRequestResult {
   }
   if (instruction !== undefined && typeof instruction !== 'string') return fail('instruction must be a string.');
   if (runtimeError !== undefined && typeof runtimeError !== 'string') return fail('runtimeError must be a string.');
+  if (speech !== undefined && !isSpeech(speech)) {
+    return fail(`speech must be a list of at most ${MAX_SPEECH_RUNS} runs of what was said (${MAX_SPEECH_CHARS} characters in all).`);
+  }
   const text = typeof instruction === 'string' ? instruction.slice(0, MAX_INSTRUCTION_CHARS) : '';
   const crash = typeof runtimeError === 'string' ? runtimeError.slice(0, MAX_INSTRUCTION_CHARS) : '';
-  if (text.trim() === '' && segments.length === 0 && crash === '') return fail('Say what to change, or draw on the page.');
+  const said = speech ?? [];
+  if (text.trim() === '' && segments.length === 0 && crash === '' && said.length === 0) return fail('Say what to change, or draw on the page.');
   return {
     ok: true,
-    value: { files: files as Record<string, string>, segments, instruction: text, ...(crash ? { runtimeError: crash } : {}) },
+    value: {
+      files: files as Record<string, string>,
+      segments,
+      instruction: text,
+      ...(crash ? { runtimeError: crash } : {}),
+      ...(said.length > 0 ? { speech: said } : {}),
+    },
   };
 }
 
@@ -83,4 +95,16 @@ function isSegment(v: unknown): v is Segment {
     (v.inkPng === undefined ||
       (typeof v.inkPng === 'string' && v.inkPng.length > 0 && Math.floor((v.inkPng.length * 3) / 4) <= MAX_INK_BYTES))
   );
+}
+
+function isSpeech(v: unknown): v is SpeechRun[] {
+  if (!Array.isArray(v) || v.length > MAX_SPEECH_RUNS) return false;
+  const valid = v.every(
+    (r) =>
+      isObject(r) &&
+      (r.mark === null || (Number.isInteger(r.mark) && (r.mark as number) >= 1)) &&
+      typeof r.text === 'string' &&
+      r.text.trim() !== '',
+  );
+  return valid && v.reduce((n: number, r: SpeechRun) => n + r.text.length, 0) <= MAX_SPEECH_CHARS;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseEditRequest, MAX_FILES, MAX_INSTRUCTION_CHARS } from './parseEditRequest';
+import { parseEditRequest, MAX_FILES, MAX_INSTRUCTION_CHARS, MAX_SPEECH_CHARS, MAX_SPEECH_RUNS } from './parseEditRequest';
 
 const files = { 'App.tsx': 'export default function App() { return null; }\n' };
 const el = { src: 'App.tsx:1:1', tag: 'div', text: '' };
@@ -25,5 +25,26 @@ describe('parseEditRequest', () => {
     expect(parseEditRequest({ files: { ...many, ...files }, segments: [], instruction: 'x' }).ok).toBe(false);
     expect(parseEditRequest({ files, segments: [{ ...segment, gesture: 'poke' }], instruction: 'x' }).ok).toBe(false);
     expect(parseEditRequest({ files, segments: [], instruction: '   ' })).toEqual({ ok: false, error: expect.stringContaining('Say what to change') });
+  });
+  it('accepts speech runs, with marks or alone', () => {
+    const speech = [{ mark: 1, text: 'smaller' }, { mark: null, text: 'and more premium' }];
+    expect(parseEditRequest({ files, segments: [segment], instruction: '', speech })).toMatchObject({ ok: true, value: { speech } });
+    expect(parseEditRequest({ files, segments: [], instruction: '', speech: [{ mark: null, text: 'dark mode' }] }).ok).toBe(true);
+    const none = parseEditRequest({ files, segments: [segment], instruction: '' });
+    expect(none.ok && 'speech' in none.value).toBe(false);
+  });
+  it('rejects malformed or oversized speech', () => {
+    const bad = [
+      'hi',
+      [{ mark: 0, text: 'x' }],
+      [{ mark: 1.5, text: 'x' }],
+      [{ mark: null, text: '   ' }],
+      [{ mark: null }],
+      Array.from({ length: MAX_SPEECH_RUNS + 1 }, () => ({ mark: null, text: 'x' })),
+      [{ mark: null, text: 'x'.repeat(MAX_SPEECH_CHARS + 1) }],
+    ];
+    for (const speech of bad) {
+      expect(parseEditRequest({ files, segments: [segment], instruction: '', speech })).toEqual({ ok: false, error: expect.stringContaining('speech') });
+    }
   });
 });

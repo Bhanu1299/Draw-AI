@@ -80,3 +80,5 @@ export interface SpeechRun {
   mark: number | null;
   text: string;
 }
+
+export type SttTokenResponse = { ok: true; token: string } | { ok: false; error: string };
