@@ -5,7 +5,7 @@ import type { EditPlan } from '@/marks/planEdit';
 import { readFrames, readPendingStrokes } from '@/marks/readBoard';
 import type { Word } from '@/marks/types';
 
-/** Dev tool: download the current marks (and words) as an eval case. Check `expected*` by hand, then save it to src/marks/evals/cases/. */
+/** Dev tool: download the current marks (and words) as an eval case. Check `expected*` by hand, set `reviewed: true`, then save it to src/marks/evals/cases/. */
 export function recordEvalCase(editor: Editor, plan: EditPlan, words?: Word[]): void {
   const ids = new Set(plan.marks.flatMap((m) => m.shapeIds));
   const evalCase: EvalCase = {
@@ -15,6 +15,7 @@ export function recordEvalCase(editor: Editor, plan: EditPlan, words?: Word[]): 
     selectedFrameId: null,
     expected: expectationsFor(plan),
     ...(words ? { words, expectedSpeech: toSpeech(bindWords(plan.marks, words)) } : {}),
+    reviewed: false, // the eval fails until someone checks the expectations and sets this to true
   };
   const url = URL.createObjectURL(new Blob([JSON.stringify(evalCase, null, 2)], { type: 'application/json' }));
   const link = document.createElement('a');

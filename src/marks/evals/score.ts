@@ -28,6 +28,23 @@ export interface EvalCase {
   words?: Word[];
   /** What the words should bind to, in order. */
   expectedSpeech?: SpeechRun[];
+  /**
+   * Recorded cases only: a person checked `expected` and `expectedSpeech` by hand. The recorder fills them
+   * from the algorithm under test, so an unreviewed recording would always pass.
+   */
+  reviewed?: boolean;
+}
+
+/** Why a case can't be trusted by the eval. Pass `file` for a recorded case: those must be reviewed by hand. */
+export function caseProblems(c: EvalCase, file?: string): string[] {
+  const label = file ?? c.name;
+  const found: string[] = [];
+  if (file !== undefined && c.reviewed !== true) {
+    found.push(`${label}: not reviewed. Check its expected targets and expectedSpeech by hand, then set "reviewed": true.`);
+  }
+  if (c.words && !c.expectedSpeech) found.push(`${label}: has words but no expectedSpeech, so its speech would never be scored.`);
+  if (c.expectedSpeech && !c.words) found.push(`${label}: has expectedSpeech but no words to bind.`);
+  return found;
 }
 
 export function targetKey(target: MarkTarget): string[] {
