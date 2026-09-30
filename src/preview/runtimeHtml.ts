@@ -24,7 +24,7 @@ export const ALLOWED_PACKAGES = Object.keys(EXTERNAL_URLS);
 /** Height of the virtual desktop viewport that vh-based utilities resolve to. */
 export const VIRTUAL_VIEWPORT_HEIGHT = 800;
 const READY_TIMEOUT_MS = 15000;
-const LIBS_FAILED_MESSAGE = "Couldn't load the preview libraries. Check your internet connection and reload.";
+export const LIBS_FAILED_MESSAGE = "Couldn't load the preview libraries. Check your internet connection and reload.";
 
 // The iframe's real viewport is the frame's height, which follows the content. Anything sized in vh would
 // then feed back into the height it reports and grow without limit, so pin the screen utilities to a fixed

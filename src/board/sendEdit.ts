@@ -61,7 +61,7 @@ export async function sendEdit(editor: Editor, plan: EditPlan, instruction: stri
 /** Called for every runtime error a preview reports; acts only on pages an edit just produced. */
 export async function handlePreviewCrash(editor: Editor, frameId: TLShapeId, message: string): Promise<void> {
   const record = getEditRecord(frameId);
-  const action = decideOnCrash(record, Date.now());
+  const action = decideOnCrash(record, Date.now(), message);
   if (!record || action === 'ignore') return;
   if (action === 'revert') return revertEdit(editor, record);
 

@@ -188,6 +188,8 @@ Project: acme-landing (React + Tailwind, files: App.tsx, components/Header.tsx, 
 - **When there are images:** crops are attached only in the low-confidence case described in §5.2.
 - **The stable system prompt:** rules, allowed imports, and edit-tool definitions. It is sent with prompt caching.
 
+> **Changed in M2a:** a project under ~40k tokens (160,000 characters) always goes in whole, marks or not, since a marked instruction can still be global and a model that can't see a file may overwrite it blindly. Above that size, only App.tsx and the files the marks point at go in.
+
 ### 6.2 What the AI returns (tool use)
 The model can call three tools:
 - `edit_file {path, old_string, new_string}`: an exact find-and-replace.

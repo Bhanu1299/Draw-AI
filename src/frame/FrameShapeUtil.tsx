@@ -26,6 +26,12 @@ export class FrameShapeUtil extends BaseBoxShapeUtil<FrameShape> {
     return false;
   }
 
+  // An arrow bound to the page snaps its ends to the frame's outline or centre, losing where the user
+  // actually pointed: arrow marks must keep their drawn points.
+  override canBind() {
+    return false;
+  }
+
   component(shape: FrameShape) {
     return (
       <HTMLContainer

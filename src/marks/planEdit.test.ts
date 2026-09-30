@@ -65,3 +65,20 @@ describe('segments and status', () => {
     expect(statusLine({ frameId: PAGE.id, marks: [] })).toBe('Editing the whole page…');
   });
 });
+
+describe('planEdit performance', () => {
+  it('plans 5 loops over a 3000-element page fast enough to run while drawing', () => {
+    const elements = Array.from({ length: 3000 }, (_, i) => ({
+      src: `components/Grid.tsx:${i + 1}:1`, tag: 'div', text: '',
+      rect: { x: (i % 60) * 21, y: Math.floor(i / 60) * 28, w: 20, h: 26 }, parent: -1,
+    }));
+    const page: FrameInfo = { id: 'shape:big', bounds: { x: 0, y: 0, w: 1280, h: 1400 }, elements };
+    const loops = [0, 1, 2, 3, 4].map((k) => stroke('draw', loopAround({ x: 100 + k * 220, y: 300, w: 120, h: 80 }, 200), k * 5000));
+    planEdit(loops, [page], null); // warm up
+    const started = performance.now();
+    const result = planEdit(loops, [page], null);
+    const ms = performance.now() - started;
+    expect(result.ok && result.plan.marks).toHaveLength(5);
+    expect(ms).toBeLessThan(40);
+  });
+});

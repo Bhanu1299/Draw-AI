@@ -67,11 +67,14 @@ export function compileEditPrompt(req: EditRequest): EditPrompt {
   return { ok: true, content: [...images, { type: 'text', text: lines.join('\n').trimEnd() }] };
 }
 
+/**
+ * Small projects go in whole: the instruction may be global ("make it all more premium") even with marks,
+ * and a model that can't see a file may overwrite it blindly. Big ones get App.tsx plus the marked files.
+ */
 function filesToShow(req: EditRequest, paths: string[]): Set<string> | null {
-  if (req.runtimeError || req.segments.length === 0) {
-    const total = paths.reduce((n, p) => n + req.files[p].length, 0);
-    return total <= MAX_WHOLE_PROJECT_CHARS ? new Set(paths) : null;
-  }
+  const total = paths.reduce((n, p) => n + req.files[p].length, 0);
+  if (total <= MAX_WHOLE_PROJECT_CHARS) return new Set(paths);
+  if (req.runtimeError || req.segments.length === 0) return null;
   const shown = new Set([ENTRY_FILE]);
   for (const s of req.segments) {
     const targets = s.pointsTo ? [s.target, s.pointsTo] : [s.target];

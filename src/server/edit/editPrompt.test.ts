@@ -24,10 +24,16 @@ describe('compileEditPrompt', () => {
       '<nav> "Product Pricing Blog" at components/Header.tsx:5 → <nav className="flex gap-8 text-sm text-slate-600">',
     );
   });
-  it('shows App.tsx and the marked files, and only lists the rest', () => {
-    const text = textOf(compileEditPrompt(req({ segments: [circleNav], instruction: '1 smaller' })));
+  it('shows every file when the project is small, even with marks (the instruction may be global)', () => {
+    const text = textOf(compileEditPrompt(req({ segments: [circleNav], instruction: '1 smaller, and make it all more premium' })));
     expect(text).toContain('1. CIRCLED:');
-    expect(text).toContain('Instruction: 1 smaller');
+    expect(text).toContain('Instruction: 1 smaller, and make it all more premium');
+    expect(text).toContain('--- components/Hero.tsx ---');
+    expect(text).not.toContain('Other files (not shown');
+  });
+  it('shows only App.tsx and the marked files of a big project, and lists the rest', () => {
+    const big = { ...SAMPLE_FILES, 'components/Big.tsx': 'x'.repeat(MAX_WHOLE_PROJECT_CHARS) };
+    const text = textOf(compileEditPrompt(req({ files: big, segments: [circleNav], instruction: '1 smaller' })));
     expect(text).toContain('--- App.tsx ---');
     expect(text).toContain('--- components/Header.tsx ---');
     expect(text).not.toContain('--- components/Hero.tsx ---');

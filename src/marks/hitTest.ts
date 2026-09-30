@@ -110,7 +110,9 @@ function withPointsTo(hit: HitResult, to: HitResult): HitResult {
 
 function circled(page: HitPage, loop: Point[]): HitResult {
   const els = page.elements;
-  const fractions = els.map((e) => fractionInPolygon(e.rect, loop));
+  // Sampling is the expensive part: skip elements the loop's bounding box doesn't even touch.
+  const loopBox = boundsOf(loop);
+  const fractions = els.map((e) => (overlapArea(e.rect, loopBox) > 0 ? fractionInPolygon(e.rect, loop) : 0));
   const inside = outermost(els, indexes(els).filter((i) => rectArea(els[i].rect) > 0 && fractions[i] >= CIRCLE_INSIDE));
   if (inside.length > 0) return elementsHit(els, inside);
   // Nothing fully circled: the element the loop covers best, smallest on ties.
