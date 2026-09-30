@@ -3,7 +3,9 @@ import { FRAME_TYPE } from '@/frame/frameTypes';
 import { markShapesUsed } from '@/marks/markMeta';
 import { MAX_IMAGE_BYTES } from '@/server/build/parseBuildRequest';
 import type { BuildRequest, BuildResponse } from '@/shared/types';
+import { postApi } from './api';
 import { finishBuild, startBuild } from './buildTracker';
+import { blobToBase64 } from './imageData';
 import { checkSelection, EXPORT_PADDING, exportScale, sliceRects } from './selectionHelpers';
 
 const FRAME_GAP = 120;
@@ -43,7 +45,9 @@ export async function buildFromSelection(
     props: { status: 'building' },
   });
 
-  const response = await postBuild({ kind: check.kind, images, note }).finally(() => finishBuild(frameId));
+  const response = await postApi<BuildResponse>('/api/build', { kind: check.kind, images, note } satisfies BuildRequest).finally(() =>
+    finishBuild(frameId),
+  );
   if (!editor.getShape(frameId)) {
     return { ok: false, error: 'The page was built, but its frame was removed (undo or delete) before it finished.' };
   }
@@ -60,19 +64,6 @@ export async function buildFromSelection(
     { history: 'ignore' },
   );
   return response.ok ? { ok: true } : { ok: false, error: response.error };
-}
-
-async function postBuild(body: BuildRequest): Promise<BuildResponse> {
-  try {
-    const res = await fetch('/api/build', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    return (await res.json()) as BuildResponse;
-  } catch {
-    return { ok: false, error: 'Could not reach the server. Check that it is running and try again.' };
-  }
 }
 
 /** Cut a tall PNG into top-to-bottom slices so the model sees each part at a legible size. Null if a slice is too big. */
@@ -97,13 +88,4 @@ async function sliceToBase64(blob: Blob): Promise<string[] | null> {
   } finally {
     bitmap.close();
   }
-}
-
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
 }

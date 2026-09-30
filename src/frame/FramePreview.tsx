@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useEditor } from 'tldraw';
 import { isBuildInFlight } from '@/board/buildTracker';
+import { handlePreviewCrash } from '@/board/sendEdit';
 import { parsePreviewMessage } from '@/preview/previewMessages';
 import { setFrameElements } from './elementRegistry';
 import { nextFrameHeight } from './frameHeight';
@@ -43,6 +44,7 @@ export function FramePreview({ shape }: { shape: FrameShape }) {
       }
       if (msg.type === 'runtime-error') {
         setProblem(msg.message);
+        void handlePreviewCrash(editor, shape.id, msg.message);
         return;
       }
       const current = editor.getShape(shape.id) as FrameShape | undefined;
