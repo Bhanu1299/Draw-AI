@@ -19,19 +19,24 @@ import { IDLE_VOICE, voiceState } from './voiceSession';
 
 let recording: Recording | null = null;
 let autoStop: ReturnType<typeof setTimeout> | undefined;
+/** Bumped by cancelVoice and each start, so a start that finishes late can tell it was cancelled or superseded. */
+let generation = 0;
 
 /** ● Start: open the mic and the STT session. Errors land in the panel's status line. */
 export async function startVoice(editor: Editor): Promise<void> {
   if (voiceState.get().phase !== 'idle') return;
+  if (editStatus.get().phase === 'working') return; // an edit or build is running
+  const mine = ++generation;
   voiceState.set({ ...IDLE_VOICE, phase: 'starting' });
   editStatus.set({ phase: 'idle', text: '' });
   try {
     const { connectScribe } = await import('@/voice/scribeSocket'); // the SDK loads only once voice is used
-    recording = await startRecording(
+    const started = await startRecording(
       { fetchToken: () => postApi<SttTokenResponse>('/api/stt-token', {}), connect: connectScribe, startMic: startMicCapture, now: Date.now },
       {
         onPartial: (partial) => voiceState.update((s) => ({ ...s, partial })),
         onFailure: (message) => {
+          if (mine !== generation) return;
           clearTimeout(autoStop);
           recording = null;
           voiceState.set(IDLE_VOICE);
@@ -39,9 +44,15 @@ export async function startVoice(editor: Editor): Promise<void> {
         },
       },
     );
+    if (mine !== generation) {
+      started.cancel(); // cancelled or superseded while starting: release the mic
+      return;
+    }
+    recording = started;
     voiceState.update((s) => ({ ...s, phase: 'recording', startedAt: Date.now() }));
     autoStop = setTimeout(() => void stopVoice(editor), MAX_RECORDING_MS);
   } catch (err) {
+    if (mine !== generation) return;
     recording = null;
     voiceState.set(IDLE_VOICE);
     editStatus.set({ phase: 'error', text: err instanceof VoiceError ? err.message : 'Could not start listening. Try again, or type below.' });
@@ -69,6 +80,7 @@ export async function stopVoice(editor: Editor): Promise<void> {
 
 /** Drop the recording without acting on it. */
 export function cancelVoice(): void {
+  generation++;
   clearTimeout(autoStop);
   recording?.cancel();
   recording = null;
