@@ -19,27 +19,33 @@ export async function startMicCapture(onSamples: (samples: Float32Array, sampleR
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1, sampleRate: { ideal: 16_000 } },
   });
-  // Firefox requires the context to run at the mic's own rate.
-  const rate = stream.getAudioTracks()[0]?.getSettings().sampleRate;
-  const context = new AudioContext(rate ? { sampleRate: rate } : undefined);
+  let context: AudioContext | undefined;
+  let released = false;
   const release = () => {
+    if (released) return;
+    released = true;
     stream.getTracks().forEach((t) => t.stop());
-    void context.close();
+    if (context && context.state !== 'closed') context.close().catch(() => {});
   };
   try {
+    // Firefox requires the context to run at the mic's own rate.
+    const rate = stream.getAudioTracks()[0]?.getSettings().sampleRate;
+    const ctx = new AudioContext(rate ? { sampleRate: rate } : undefined);
+    context = ctx;
     const url = URL.createObjectURL(new Blob([PROCESSOR], { type: 'application/javascript' }));
     try {
-      await context.audioWorklet.addModule(url);
+      await ctx.audioWorklet.addModule(url);
     } finally {
       URL.revokeObjectURL(url);
     }
-    const source = context.createMediaStreamSource(stream);
-    const node = new AudioWorkletNode(context, 'drawai-capture');
-    node.port.onmessage = (e: MessageEvent<Float32Array>) => onSamples(e.data, context.sampleRate);
+    const source = ctx.createMediaStreamSource(stream);
+    const node = new AudioWorkletNode(ctx, 'drawai-capture');
+    node.port.onmessage = (e: MessageEvent<Float32Array>) => onSamples(e.data, ctx.sampleRate);
     source.connect(node);
-    if (context.state === 'suspended') await context.resume();
+    if (ctx.state === 'suspended') await ctx.resume();
     return {
       stop() {
+        if (released) return;
         node.port.onmessage = null;
         source.disconnect();
         node.disconnect();
