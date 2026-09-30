@@ -30,12 +30,11 @@ export function toOpenAIMessages(system: string, messages: ChatMessage[]): ChatC
 export function createDeepSeekGenerate(apiKey: string): Generate {
   // DeepSeek's API is OpenAI-compatible.
   const client = new OpenAI({ apiKey, baseURL: DEEPSEEK_BASE_URL });
-  return async ({ system, messages }) => {
-    const completion = await client.chat.completions.create({
-      model: DEEPSEEK_MODEL,
-      max_tokens: 32000,
-      messages: toOpenAIMessages(system, messages),
-    });
+  return async ({ system, messages, signal }) => {
+    const completion = await client.chat.completions.create(
+      { model: DEEPSEEK_MODEL, max_tokens: 32000, messages: toOpenAIMessages(system, messages) },
+      { signal },
+    );
     const choice = completion.choices[0];
     if (!choice) throw new BuildError('The AI returned an empty answer. Please try again.');
     if (choice.finish_reason === 'content_filter') {

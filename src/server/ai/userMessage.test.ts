@@ -38,4 +38,11 @@ describe('userMessage', () => {
   it('falls back to a generic message', () => {
     expect(userMessage(new Error('???'), deepseek)).toBe('Something went wrong while building. Please try again.');
   });
+  it('explains a timeout', () => {
+    expect(userMessage(new OpenAI.APIUserAbortError(), deepseek)).toBe('Took too long. Try a smaller change.');
+    expect(userMessage(Object.assign(new Error('t'), { name: 'TimeoutError' }), deepseek)).toBe('Took too long. Try a smaller change.');
+  });
+  it('names the action in the generic fallback', () => {
+    expect(userMessage(new Error('???'), deepseek, 'editing')).toBe('Something went wrong while editing. Please try again.');
+  });
 });

@@ -19,17 +19,20 @@ export function toAnthropicMessages(messages: ChatMessage[]): Anthropic.Beta.Bet
 
 export function createAnthropicGenerate(): Generate {
   const client = new Anthropic();
-  return async ({ system, messages }) => {
-    const stream = client.beta.messages.stream({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 64000,
-      thinking: { type: 'adaptive' },
-      system,
-      messages: toAnthropicMessages(messages),
-      // On a safety decline, the API re-runs the request on Anthropic's recommended fallback model.
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-    });
+  return async ({ system, messages, signal }) => {
+    const stream = client.beta.messages.stream(
+      {
+        model: ANTHROPIC_MODEL,
+        max_tokens: 64000,
+        thinking: { type: 'adaptive' },
+        system,
+        messages: toAnthropicMessages(messages),
+        // On a safety decline, the API re-runs the request on Anthropic's recommended fallback model.
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+      },
+      { signal },
+    );
     const message = await stream.finalMessage();
     if (message.stop_reason === 'refusal') {
       throw new BuildError('The AI declined to build this. Try a different sketch or screenshot.');

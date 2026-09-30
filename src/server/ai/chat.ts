@@ -7,7 +7,7 @@ export interface ChatMessage {
 }
 
 /** Sends a conversation to the model and returns its text. Injected so tests never call an API. */
-export type Generate = (args: { system: string; messages: ChatMessage[] }) => Promise<string>;
+export type Generate = (args: { system: string; messages: ChatMessage[]; signal?: AbortSignal }) => Promise<string>;
 
 /** An AI failure whose message is safe to show the user. */
 export class BuildError extends Error {}

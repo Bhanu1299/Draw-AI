@@ -4,7 +4,14 @@ import { BuildError } from './chat';
 import { missingKeyMessage, type ProviderInfo } from './provider';
 
 /** Turn any build failure into a message the user can act on. */
-export function userMessage(err: unknown, provider: ProviderInfo): string {
+export function userMessage(err: unknown, provider: ProviderInfo, doing = 'building'): string {
+  if (
+    err instanceof Anthropic.APIUserAbortError ||
+    err instanceof OpenAI.APIUserAbortError ||
+    (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError'))
+  ) {
+    return 'Took too long. Try a smaller change.';
+  }
   if (err instanceof BuildError) return err.message;
   // Checked before APIError: connection failures are APIErrors without a status.
   if (err instanceof Anthropic.APIConnectionError || err instanceof OpenAI.APIConnectionError) {
@@ -19,5 +26,5 @@ export function userMessage(err: unknown, provider: ProviderInfo): string {
     if (status === 429) return 'The AI is busy right now. Wait a moment and try again.';
     if (status >= 500) return 'The AI service is overloaded right now. Wait a minute and try again.';
   }
-  return 'Something went wrong while building. Please try again.';
+  return `Something went wrong while ${doing}. Please try again.`;
 }
