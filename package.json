@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "eval:edits": "EVAL_LIVE=1 vitest run src/server/edit/editProject.live.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

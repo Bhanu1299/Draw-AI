@@ -54,6 +54,8 @@ It does design and UI only. It is not a general chatbot, and there is no Q&A mod
 
 After an instruction is applied, its marks fade and are archived: hidden, but kept in the version record. This keeps the board clean.
 
+> **Changed in M2a:** until M3 adds the `versions` table, sent marks are deleted in the same undo step as the edit, so one ⌘Z brings back both the old page and the marks.
+
 ### 2.3 Three ways to start
 | Start | What happens | v1 milestone |
 |---|---|---|
@@ -157,6 +159,8 @@ A tldraw tool shape (ellipse, arrow, rectangle) skips classification and uses it
 - **Sketch:** describe it as a *new region*: its size and its position relative to neighbouring elements (for example, "between `<Hero>` and `<Pricing>`, full width, ~300px tall") or relative to the frame (for example, "to the right of the page").
 - **Low confidence:** if a mark hits nothing or best overlap is under 40%, attach a **small cropped PNG** of the area around the mark (max 512px) instead of a full screenshot.
 
+> **Changed in M2a:** tldraw can't rasterize the preview iframe, so instead of a page crop, unsure marks and freehand sketches attach a ≤512px PNG of the ink alone, plus a geometric description of where it sits.
+
 ### 5.3 The `data-src` tags
 The preview's Babel plugin adds `data-src="components/Header.tsx:18:4"` to every HTML-level JSX element at compile time.
 - Because the AI never writes these tags, they are always correct.
@@ -191,6 +195,8 @@ The model can call three tools:
 - `delete_file {path}`
 
 It also returns a one-line `summary` for the status line. The model is told never to touch code outside what the segments point at unless an instruction is global.
+
+> **Changed in M2a:** instead of tool use, the model returns text blocks: `<edit path><old>…</old><new>…</new></edit>`, `<file path>…</file>` and `<delete path/>`, then `<summary>`. One parser serves both DeepSeek and Claude, matching M1's `<file>` protocol. An `<old>` that doesn't match exactly falls back to whole-line matching that ignores indentation.
 
 ### 6.3 Apply and verify (server)
 1. Apply the edits in order. If an `old_string` isn't found, send that error back to the model once.
@@ -265,7 +271,9 @@ Playwright tests of the main loop with a mocked STT feed and mocked AI responses
 
 ## 11. Milestones
 1. **M1: Board + build.** tldraw board, the live preview frame shape (Babel + Tailwind + `data-src`), blank-canvas sketch → build, and screenshot → build. In M1 the frame's files live in the shape itself, so tldraw's undo and local browser persistence act as versioning. **M1 runs locally only**; don't deploy it publicly before M3 adds auth and limits.
-2. **M2: The edit loop.** Recording, streaming STT, segmentation and badges, the gesture classifier, hit-testing, the prompt compiler, the edit API with apply/verify/retry, versions and undo, and the golden eval set.
+2. **M2: The edit loop**, built in two parts:
+   - **M2a: point and edit.** Marks on the live page, numbered badges and target highlights, the gesture classifier, hit-testing, a typed instruction, the prompt compiler, the edit API with apply/verify/retry and a 45 s timeout, one-step undo, the automatic runtime fix, and the targeting eval.
+   - **M2b: voice.** Recording, streaming STT, word-to-mark binding, draw/interact mode (`I` key), and the recorded golden set with word logs.
 3. **M3: Product shell.** Supabase auth (invite-only), board and version persistence, daily limits, the usage/admin log, and ZIP export.
 4. **M4: URL import.** The Playwright capture worker and the HTML+screenshot → React + Tailwind conversion.
 
