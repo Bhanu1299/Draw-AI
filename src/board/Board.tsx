@@ -6,6 +6,7 @@ import 'tldraw/tldraw.css';
 import { FrameShapeUtil } from '@/frame/FrameShapeUtil';
 import { FRAME_TYPE } from '@/frame/frameTypes';
 import { SAMPLE_FILES } from '@/frame/sampleFiles';
+import { registerMarkTracking } from '@/marks/markMeta';
 import { BuildBar } from './BuildBar';
 import { findInterruptedFrames } from './selectionHelpers';
 
@@ -50,6 +51,7 @@ export default function Board() {
           recoverInterruptedBuilds(mounted);
           if (mounted.getCurrentPageShapes().length === 0) insertSampleFrame(mounted);
           setEditor(mounted);
+          return registerMarkTracking(mounted);
         }}
       />
       {editor && <BuildBar editor={editor} />}

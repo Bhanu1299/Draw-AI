@@ -1,5 +1,6 @@
 import { createShapeId, type Editor } from 'tldraw';
 import { FRAME_TYPE } from '@/frame/frameTypes';
+import { markShapesUsed } from '@/marks/markMeta';
 import { MAX_IMAGE_BYTES } from '@/server/build/parseBuildRequest';
 import type { BuildRequest, BuildResponse } from '@/shared/types';
 import { finishBuild, startBuild } from './buildTracker';
@@ -32,6 +33,8 @@ export async function buildFromSelection(
   // Own undo step for the new frame, so undoing a stroke drawn during the build doesn't also revert the result.
   editor.markHistoryStoppingPoint('build');
   startBuild(frameId);
+  // The sketch is now a page of its own: it must not be read as edit marks for the frame beside it.
+  markShapesUsed(editor, shapes.map((s) => s.id));
   editor.createShape({
     id: frameId,
     type: FRAME_TYPE,
