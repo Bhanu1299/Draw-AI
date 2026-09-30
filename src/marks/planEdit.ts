@@ -13,6 +13,9 @@ export interface PlannedMark {
   n: number;
   shapeIds: string[];
   bounds: Rect;
+  /** When the mark was drawn (epoch ms), to bind spoken words to it. */
+  t0: number;
+  t1: number;
   gesture: Gesture;
   hit: HitResult;
   wrote: string[];
@@ -32,7 +35,9 @@ export type PlanResult =
 export function planEdit(strokes: Stroke[], frames: FrameInfo[], selectedFrameId: string | null): PlanResult {
   const groups = groupStrokes(strokes);
   const owners = groups.map((g) => nearestFrame(g, frames));
-  const frame = busiestFrame(owners) ?? frames.find((f) => f.id === selectedFrameId);
+  // Nothing drawn and nothing selected: a board with one page means that page.
+  const fallback = frames.find((f) => f.id === selectedFrameId) ?? (groups.length === 0 && frames.length === 1 ? frames[0] : undefined);
+  const frame = busiestFrame(owners) ?? fallback;
   if (!frame) {
     return groups.length > 0
       ? { ok: false, reason: 'no-frame', message: 'Draw on or next to a page to change it.' }
@@ -49,6 +54,8 @@ export function planEdit(strokes: Stroke[], frames: FrameInfo[], selectedFrameId
       n: i + 1,
       shapeIds: group.strokes.map((s) => s.shapeId),
       bounds: group.bounds,
+      t0: group.t0,
+      t1: group.t1,
       gesture: mark.gesture,
       hit: hitTest(mark, group.bounds, page),
       wrote: mark.wrote,
@@ -69,6 +76,13 @@ function nearestFrame(group: MarkGroup, frames: FrameInfo[]): FrameInfo | undefi
     }
   }
   return best;
+}
+
+/** Pending shapes too far from every page to be edit marks: a new sketch, which voice can build. */
+export function looseShapeIds(strokes: Stroke[], frames: FrameInfo[]): string[] {
+  return groupStrokes(strokes)
+    .filter((g) => !nearestFrame(g, frames))
+    .flatMap((g) => g.strokes.map((s) => s.shapeId));
 }
 
 /** The page owning the most marks; on a tie, the one with the most recent mark. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { circled, needsInk, planEdit, planShapeIds, statusLine, toSegment } from './planEdit';
-import { line, loopAround, PAGE, PAGE_BOUNDS, rectOf, src, stroke, zigzag } from './testing';
+import { circled, looseShapeIds, needsInk, planEdit, planShapeIds, statusLine, toSegment } from './planEdit';
+import { line, loopAround, PAGE, PAGE_BOUNDS, rectOf, rectOutline, src, stroke, zigzag } from './testing';
 import type { FrameInfo } from './types';
 
 const other: FrameInfo = { id: 'shape:other', bounds: { x: 3000, y: 0, w: 1280, h: 800 }, elements: [] };
@@ -33,7 +33,20 @@ describe('planEdit', () => {
   });
   it('allows a whole-page instruction on a selected page with no marks', () => {
     expect(planEdit([], [PAGE], PAGE.id)).toEqual({ ok: true, plan: { frameId: PAGE.id, marks: [] } });
-    expect(planEdit([], [PAGE], null)).toMatchObject({ ok: false, reason: 'no-marks' });
+    expect(planEdit([], [PAGE, other], null)).toMatchObject({ ok: false, reason: 'no-marks' });
+  });
+  it("carries each mark's drawing time, for binding words to it", () => {
+    const result = planEdit([stroke('draw', loopAround(rectOf(3)), 1000)], [PAGE], null);
+    expect(result.ok && result.plan.marks[0]).toMatchObject({ n: 1, t0: 1000, t1: 1400 });
+  });
+  it('uses the only page for a whole-page instruction when nothing is drawn', () => {
+    expect(planEdit([], [PAGE], null)).toEqual({ ok: true, plan: { frameId: PAGE.id, marks: [] } });
+  });
+  it('finds pending shapes too far from any page to be marks (a new sketch)', () => {
+    const far = stroke('rectangle', rectOutline({ x: 5000, y: 5000, w: 200, h: 100 }));
+    const near = stroke('draw', loopAround(rectOf(3)));
+    expect(looseShapeIds([far, near], [PAGE])).toEqual([far.shapeId]);
+    expect(looseShapeIds([far], [])).toEqual([far.shapeId]);
   });
 });
 
