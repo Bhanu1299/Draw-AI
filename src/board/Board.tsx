@@ -1,16 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { createShapeId, Tldraw, type Editor } from 'tldraw';
+import { createShapeId, Tldraw, type Editor, type TLComponents } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { FrameShapeUtil } from '@/frame/FrameShapeUtil';
 import { FRAME_TYPE } from '@/frame/frameTypes';
 import { SAMPLE_FILES } from '@/frame/sampleFiles';
 import { registerMarkTracking } from '@/marks/markMeta';
 import { BuildBar } from './BuildBar';
+import { InstructionPanel } from './InstructionPanel';
+import { MarkOverlay } from './MarkOverlay';
 import { findInterruptedFrames } from './selectionHelpers';
 
 const shapeUtils = [FrameShapeUtil];
+const components: TLComponents = { InFrontOfTheCanvas: MarkOverlay };
 
 function insertSampleFrame(editor: Editor) {
   const view = editor.getViewportPageBounds();
@@ -47,6 +50,7 @@ export default function Board() {
       <Tldraw
         persistenceKey="drawai-board"
         shapeUtils={shapeUtils}
+        components={components}
         onMount={(mounted) => {
           recoverInterruptedBuilds(mounted);
           if (mounted.getCurrentPageShapes().length === 0) insertSampleFrame(mounted);
@@ -55,6 +59,7 @@ export default function Board() {
         }}
       />
       {editor && <BuildBar editor={editor} />}
+      {editor && <InstructionPanel editor={editor} />}
     </div>
   );
 }
