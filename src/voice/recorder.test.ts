@@ -102,6 +102,17 @@ describe('startRecording', () => {
     await expect(startRecording(h.deps, h.callbacks)).rejects.toThrow('Voice is not set up.');
     expect(h.mic.stop).toHaveBeenCalled();
   });
+  it('releases the mic and explains when the voice connection cannot be opened', async () => {
+    const h = harness({
+      connect: () => {
+        throw new Error('bad url');
+      },
+    });
+    await expect(startRecording(h.deps, h.callbacks)).rejects.toSatisfy(
+      (e) => e instanceof VoiceError && e.message.includes("Couldn't connect"),
+    );
+    expect(h.mic.stop).toHaveBeenCalled();
+  });
   it('cancels and reports when the session breaks mid-recording', async () => {
     const h = harness();
     const rec = await startRecording(h.deps, h.callbacks);

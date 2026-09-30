@@ -15,6 +15,7 @@ export const NO_MIC = 'No microphone found. Connect one, or type your instructio
 export const DIDNT_CATCH = "Didn't catch that. Press ● Start and try again, or type below.";
 export const NO_RESPONSE = "The voice service didn't respond. Press ● Start to try again, or type below.";
 const LOST = 'Lost the connection to the voice service. Press ● Start to try again.';
+const NO_CONNECT = "Couldn't connect to the voice service. Press ● Start to try again, or type below.";
 const NO_TOKEN = "Couldn't reach the server for voice. Check that it is running, or type your instruction.";
 
 export class VoiceError extends Error {
@@ -138,30 +139,35 @@ export async function startRecording(deps: RecorderDeps, callbacks: RecorderCall
     callbacks.onFailure(message);
   }
 
-  socket = deps.connect(minted.token, {
-    onOpen: () => {
-      open = true;
-      flush();
-      notify();
-    },
-    onPartial: (text) => callbacks.onPartial(text),
-    onWords: (words) => {
-      raw.push(...words);
-      wordEvents++;
-      notify();
-    },
-    onError: (e) => {
-      if (e.kind === 'no-speech') {
-        noSpeech = true;
+  try {
+    socket = deps.connect(minted.token, {
+      onOpen: () => {
+        open = true;
+        flush();
         notify();
-      } else fail(e.message);
-    },
-    onClose: () => {
-      closed = true;
-      notify();
-      if (!stopping) fail(LOST);
-    },
-  });
+      },
+      onPartial: (text) => callbacks.onPartial(text),
+      onWords: (words) => {
+        raw.push(...words);
+        wordEvents++;
+        notify();
+      },
+      onError: (e) => {
+        if (e.kind === 'no-speech') {
+          noSpeech = true;
+          notify();
+        } else fail(e.message);
+      },
+      onClose: () => {
+        closed = true;
+        notify();
+        if (!stopping) fail(LOST);
+      },
+    });
+  } catch {
+    mic.stop();
+    throw new VoiceError(NO_CONNECT);
+  }
 
   async function stop(): Promise<Word[]> {
     if (done) throw new VoiceError(failure ?? DIDNT_CATCH);
