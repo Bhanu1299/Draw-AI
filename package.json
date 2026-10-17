@@ -1,6 +1,12 @@
 {
   "name": "drawai",
   "version": "0.1.0",
+  "description": "A whiteboard where your sketch becomes real UI: draw, point and talk to build and edit live React pages.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Bhanu1299/Draw-AI.git"
+  },
   "private": true,
   "engines": {
     "node": ">=22.12"

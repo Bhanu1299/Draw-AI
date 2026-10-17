@@ -7,3 +7,6 @@ next-env.d.ts
 .superpowers/
 *.tsbuildinfo
 .eval/
+
+# Local audit notes and scratch output (private)
+audit/
